@@ -775,27 +775,30 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 /* Selector flotante */
 .mat-flotante {
   position: absolute; z-index: 1000;
-  display: flex; align-items: center; gap: .4rem;
+  display: flex; align-items: center; gap: .5rem;
   background: #fff;
-  border: 1.5px solid var(--borde);
-  border-radius: var(--radio-sm);
-  padding: .4rem .6rem;
-  box-shadow: 0 4px 20px rgba(0,0,0,.15);
+  border: 2px solid #1e3a5f;
+  border-radius: 10px;
+  padding: .6rem .9rem;
+  box-shadow: 0 8px 28px rgba(0,0,0,.28), 0 2px 6px rgba(0,0,0,.15);
 }
-.flotante-label { font-size: .78rem; color: var(--texto-2); margin-right: .25rem; white-space: nowrap; }
+.flotante-label { font-size: .85rem; font-weight: 600; color: #1e3a5f; margin-right: .3rem; white-space: nowrap; }
 .btn-flotante {
-  padding: .2rem .5rem; border-radius: 4px;
-  font-size: .78rem; font-weight: 600; border: 1px solid var(--borde);
+  padding: .35rem .7rem; border-radius: 6px;
+  font-size: .88rem; font-weight: 700; border: 1.5px solid var(--borde);
   background: var(--fondo-alt); color: var(--texto-2);
-  transition: background .1s;
+  transition: background .1s, transform .08s;
+  cursor: pointer;
 }
-.btn-flotante:hover { background: var(--borde); }
-.btn-v100  { background: #16a34a; color: #fff; border-color: #16a34a; }
-.btn-v75   { background: #fb923c; color: #fff; border-color: #fb923c; }
-.btn-v50   { background: #fdba74; color: #7c2d12; border-color: #fdba74; }
-.btn-v25   { background: #fed7aa; color: #7c2d12; border-color: #fed7aa; }
-.btn-v0    { background: #f1f5f9; color: var(--texto-2); }
-.btn-cerrar-flotante { font-size: .7rem; color: var(--texto-3); background: transparent; border: none; }
+.btn-flotante:hover  { background: var(--borde); transform: scale(1.06); }
+.btn-flotante:active { transform: scale(.96); }
+.btn-v100  { background: #16a34a; color: #fff; border-color: #15803d; }
+.btn-v75   { background: #fb923c; color: #fff; border-color: #ea7a1e; }
+.btn-v50   { background: #fdba74; color: #7c2d12; border-color: #fca04a; }
+.btn-v25   { background: #fed7aa; color: #7c2d12; border-color: #fdba74; }
+.btn-v0    { background: #f1f5f9; color: var(--texto-2); border-color: #cbd5e1; }
+.btn-cerrar-flotante { font-size: .8rem; color: var(--texto-3); background: transparent; border: none; padding: .3rem .4rem; cursor: pointer; }
+.btn-cerrar-flotante:hover { color: var(--texto-1); }
 
 .mat-input-inline {
   position: fixed; z-index: 1000; display: none;

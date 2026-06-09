@@ -582,9 +582,12 @@ async function presencia_entrarProyecto(idProyecto, onCambioModo) {
   _pres_proyectoActual = idProyecto;
   _pres_callback = onCambioModo || null;
 
+  // Asumir modo editor de inmediato (optimista) — así el usuario puede tocar
+  // celdas sin esperar a que Firebase confirme el rol. Si otro dispositivo
+  // resulta ser el editor, Firebase lo corregirá a modo visualizador.
+  _pres_modoEditor = true;
+
   if (!_db) {
-    // Sin Firebase: siempre editor
-    _pres_modoEditor = true;
     return true;
   }
 

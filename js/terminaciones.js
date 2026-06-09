@@ -21,6 +21,9 @@ let _dragDocRegistrado   = false;
 let _scrollRAF           = null;
 let _ptrClientX          = 0;
 let _ptrClientY          = 0;
+let _touchStartX         = 0;
+let _touchStartY         = 0;
+let _esScrollando        = false;   // true cuando el gesto táctil es scroll vertical
 
 const VALORES_CICLO = [0, 25, 50, 75, 100];
 
@@ -936,9 +939,11 @@ function _mat_registrarEventosCeldas() {
         _mat_mostrarSelectorFlotante(_sel);
         return;
       }
+      // Click simple → limpiar selección anterior, seleccionar esta celda y mostrar burbuja
       _sel.clear();
       _ancla = td;
-      _mat_ciclarValor(td);
+      _sel.add(td);
+      _mat_mostrarSelectorFlotante(_sel);
     });
 
     td.addEventListener('dblclick', e => {
@@ -961,21 +966,43 @@ function _mat_registrarEventosCeldas() {
 
     td.addEventListener('keydown', e => {
       if (!presencia_esModoEditor()) return; // modo visualizador: sin edición
-      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); _mat_ciclarValor(td); }
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); _sel.clear(); _sel.add(td); _mat_mostrarSelectorFlotante(_sel); }
     });
 
     td.addEventListener('touchstart', e => {
-      e.preventDefault();
-      _arrastrando = true;
+      // No bloqueamos el scroll aquí — esperamos el primer movimiento para decidir
+      _esScrollando = false;
+      _arrastrando  = false;
+      _touchStartX  = e.touches[0].clientX;
+      _touchStartY  = e.touches[0].clientY;
       _sel.clear();
       _ancla = td;
       _sel.add(td);
       td.classList.add('seleccionada');
-    }, { passive: false });
+    }, { passive: true });
 
     td.addEventListener('touchmove', e => {
+      const t  = e.touches[0];
+      const dx = Math.abs(t.clientX - _touchStartX);
+      const dy = Math.abs(t.clientY - _touchStartY);
+
+      if (!_arrastrando && !_esScrollando) {
+        if (dx < 6 && dy < 6) return; // movimiento muy pequeño: esperar
+        // Determinar tipo de gesto según dirección dominante
+        if (dy > dx) {
+          // Más vertical que horizontal → scroll de la página, no selección
+          _esScrollando = true;
+          _sel.clear();
+          document.querySelectorAll('.celda-mat.seleccionada').forEach(c => c.classList.remove('seleccionada'));
+          return; // no preventDefault → el browser scrollea normalmente
+        }
+        _arrastrando = true; // gesto horizontal → selección de celdas
+      }
+
+      if (_esScrollando) return; // ya sabemos que es scroll
+
+      // Es selección de celdas: bloquear scroll y expandir rango
       e.preventDefault();
-      const t = e.touches[0];
       _ptrClientX = t.clientX;
       _ptrClientY = t.clientY;
       const el = document.elementFromPoint(t.clientX, t.clientY);
@@ -986,10 +1013,12 @@ function _mat_registrarEventosCeldas() {
 
     td.addEventListener('touchend', () => {
       _mat_detenerAutoScroll();
+      if (_esScrollando) { _esScrollando = false; _arrastrando = false; return; }
       if (!presencia_esModoEditor()) { _arrastrando = false; return; } // modo visualizador
-      if (_arrastrando && _sel.size > 1) _mat_mostrarSelectorFlotante(_sel);
-      else if (_arrastrando) _mat_ciclarValor(td);
-      _arrastrando = false;
+      // Toque simple o selección múltiple: siempre mostrar burbuja
+      _mat_mostrarSelectorFlotante(_sel);
+      _arrastrando  = false;
+      _esScrollando = false;
     });
   });
 
@@ -1124,8 +1153,9 @@ function _mat_mostrarSelectorFlotante(sel) {
     flotante.className = 'mat-flotante';
     document.body.appendChild(flotante);
   }
+  const labelCeldas = sel.size === 1 ? 'Avance:' : `${sel.size} celdas:`;
   flotante.innerHTML = `
-    <span class="flotante-label">${sel.size} celdas:</span>
+    <span class="flotante-label">${labelCeldas}</span>
     ${VALORES_CICLO.map(v => `<button class="btn-flotante btn-v${v}" data-val="${v}">${v}%</button>`).join('')}
     <button class="btn-flotante btn-cerrar-flotante">✕</button>`;
 
