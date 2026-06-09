@@ -24,6 +24,7 @@ let _ptrClientY          = 0;
 let _touchStartX         = 0;
 let _touchStartY         = 0;
 let _esScrollando        = false;   // true cuando el gesto táctil es scroll vertical
+let _ultimoFueToque      = false;   // bloquea el click sintético que el browser dispara tras touchend
 
 const VALORES_CICLO = [0, 25, 50, 75, 100];
 
@@ -933,13 +934,15 @@ function _mat_registrarEventosCeldas() {
 
   document.querySelectorAll('.celda-mat').forEach(td => {
     td.addEventListener('click', e => {
+      // Ignorar el click sintético que el browser dispara tras touchend en móvil
+      if (_ultimoFueToque) { _ultimoFueToque = false; return; }
       if (!presencia_esModoEditor()) return; // modo visualizador: sin edición
       if (e.shiftKey && _ancla) {
         _mat_seleccionarRango(_ancla, td, _sel);
         _mat_mostrarSelectorFlotante(_sel);
         return;
       }
-      // Click simple → limpiar selección anterior, seleccionar esta celda y mostrar burbuja
+      // Click simple (mouse real) → mostrar burbuja
       _sel.clear();
       _ancla = td;
       _sel.add(td);
@@ -987,19 +990,18 @@ function _mat_registrarEventosCeldas() {
       const dy = Math.abs(t.clientY - _touchStartY);
 
       if (!_arrastrando && !_esScrollando) {
-        if (dx < 6 && dy < 6) return; // movimiento muy pequeño: esperar
-        // Determinar tipo de gesto según dirección dominante
-        if (dy > dx) {
-          // Más vertical que horizontal → scroll de la página, no selección
+        if (dx < 12 && dy < 12) return; // movimiento pequeño: esperar para decidir
+        // Scroll: claramente más vertical (ratio 1.5x para no confundir diagonales)
+        if (dy > dx * 1.5) {
           _esScrollando = true;
           _sel.clear();
           document.querySelectorAll('.celda-mat.seleccionada').forEach(c => c.classList.remove('seleccionada'));
           return; // no preventDefault → el browser scrollea normalmente
         }
-        _arrastrando = true; // gesto horizontal → selección de celdas
+        _arrastrando = true; // claramente horizontal → selección de celdas
       }
 
-      if (_esScrollando) return; // ya sabemos que es scroll
+      if (_esScrollando) return;
 
       // Es selección de celdas: bloquear scroll y expandir rango
       e.preventDefault();
@@ -1012,6 +1014,7 @@ function _mat_registrarEventosCeldas() {
     }, { passive: false });
 
     td.addEventListener('touchend', () => {
+      _ultimoFueToque = true; // bloquear el click sintético que llega después
       _mat_detenerAutoScroll();
       if (_esScrollando) { _esScrollando = false; _arrastrando = false; return; }
       if (!presencia_esModoEditor()) { _arrastrando = false; return; } // modo visualizador
