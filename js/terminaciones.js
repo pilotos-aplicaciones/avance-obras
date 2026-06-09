@@ -975,76 +975,34 @@ function _mat_registrarEventosCeldas() {
     });
 
     td.addEventListener('touchstart', e => {
-      clearTimeout(_touchTimer);
-      _esScrollando      = false;
-      _touchModoArrastre = false;
-      _ultimoFueToque    = false;
-      _touchStartX       = e.touches[0].clientX;
-      _touchStartY       = e.touches[0].clientY;
-
-      // Timer 350ms: si el dedo no se mueve, activa el modo arrastre
-      _touchTimer = setTimeout(() => {
-        if (_esScrollando) return;
-        _touchModoArrastre = true;
-        _sel.clear();
-        _ancla = td;
-        _sel.add(td);
-        td.classList.add('seleccionada');
-        if (navigator.vibrate) navigator.vibrate(30); // vibración suave como feedback
-      }, 350);
-    }, { passive: true });
+      // Las celdas capturan el toque completamente (igual que un click de mouse).
+      // Para scrollear, usar la columna de actividades o los encabezados.
+      e.preventDefault();
+      _ultimoFueToque = true; // bloquear el click sintético posterior
+      _arrastrando = true;
+      _sel.clear();
+      _ancla = td;
+      _sel.add(td);
+      td.classList.add('seleccionada');
+    }, { passive: false });
 
     td.addEventListener('touchmove', e => {
-      const t  = e.touches[0];
-      const dx = Math.abs(t.clientX - _touchStartX);
-      const dy = Math.abs(t.clientY - _touchStartY);
-
-      if (_touchModoArrastre) {
-        // Modo arrastre activo: bloquear scroll y expandir selección
-        e.preventDefault();
-        _ptrClientX = t.clientX;
-        _ptrClientY = t.clientY;
-        const el = document.elementFromPoint(t.clientX, t.clientY);
-        const target = el?.closest('.celda-mat');
-        if (target && _ancla) _mat_seleccionarRango(_ancla, target, _sel);
-        if (!_scrollRAF) _scrollRAF = requestAnimationFrame(_mat_autoScrollLoop);
-        return;
-      }
-
-      // Antes de los 350ms: si el dedo se movió > 10px es scroll → cancelar timer
-      if (dx > 10 || dy > 10) {
-        clearTimeout(_touchTimer);
-        _esScrollando = true;
-      }
+      e.preventDefault();
+      const t = e.touches[0];
+      _ptrClientX = t.clientX;
+      _ptrClientY = t.clientY;
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      const target = el?.closest('.celda-mat');
+      if (target && _ancla) _mat_seleccionarRango(_ancla, target, _sel);
+      if (!_scrollRAF) _scrollRAF = requestAnimationFrame(_mat_autoScrollLoop);
     }, { passive: false });
 
     td.addEventListener('touchend', () => {
-      clearTimeout(_touchTimer);
-      _ultimoFueToque = true; // bloquear click sintético que llega después
       _mat_detenerAutoScroll();
-
-      if (_esScrollando) {
-        _esScrollando      = false;
-        _touchModoArrastre = false;
-        return;
-      }
-      if (!presencia_esModoEditor()) {
-        _touchModoArrastre = false;
-        return;
-      }
-
-      if (_touchModoArrastre) {
-        // Fin del arrastre → burbuja con todas las celdas seleccionadas
-        _mat_mostrarSelectorFlotante(_sel);
-      } else {
-        // Tap corto → burbuja para esta celda
-        _sel.clear();
-        _ancla = td;
-        _sel.add(td);
-        _mat_mostrarSelectorFlotante(_sel);
-      }
-      _touchModoArrastre = false;
-      _esScrollando      = false;
+      if (!presencia_esModoEditor()) { _arrastrando = false; return; }
+      // Siempre mostrar burbuja: celda única o selección múltiple
+      _mat_mostrarSelectorFlotante(_sel);
+      _arrastrando = false;
     });
   });
 
