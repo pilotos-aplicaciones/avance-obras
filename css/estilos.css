@@ -1005,6 +1005,21 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   min-width: 44px; min-height: 44px; font-size: .95rem;
 }
 
+/* Modo abreviado en móvil: columnas más angostas para que la tabla quepa en pantalla */
+.modo-movil .tabla-abreviada th,
+.modo-movil .tabla-abreviada td {
+  padding: .2rem .3rem;
+  font-size: .75rem;
+}
+.modo-movil .tabla-abreviada .celda-mat {
+  min-width: 36px;
+  min-height: 40px;
+  font-size: .8rem;
+}
+.modo-movil .tabla-abreviada .col-depto {
+  min-width: 36px;
+}
+
 /* Botón flotante guardar: visible en móvil/tablet cuando hay cambios pendientes */
 /* (la clase .visible lo activa; sin ella permanece oculto por defecto) */
 /* Barra de control original: ya fue movida al toolbar en móvil */

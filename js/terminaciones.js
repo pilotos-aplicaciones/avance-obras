@@ -725,7 +725,7 @@ function _mat_tablaFase(fase) {
   return `
   <div class="bloque-fase-mat" data-fase="${faseKey}" style="--fase-enc:${c.enc};--fase-txt:${c.txt}">
     <div class="tabla-scroll tabla-scroll-mat">
-      <table class="tabla-mat">
+      <table class="tabla-mat${_mat_abreviado ? ' tabla-abreviada' : ''}">
         <thead>
           <tr class="fila-fase-titulo">
             <td colspan="2" class="sticky-left fase-titulo-cel" style="background:${c.enc};color:#000">
