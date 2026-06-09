@@ -40,13 +40,14 @@ function datos_cargarProyecto(id) {
 function datos_eliminarProyecto(id) {
   localStorage.removeItem(_PRE + 'proyecto_' + id);
   localStorage.removeItem(_PRE + 'matrices_' + id);
+  // Limpiar claves heredadas de versiones anteriores (por si existen en el dispositivo)
   localStorage.removeItem(_PRE + 'baseline_' + id);
   localStorage.removeItem(_PRE + 'hist_og_' + id);
   localStorage.removeItem(_PRE + 'hist_term_' + id);
-  localStorage.removeItem(_PRE + 'semana_ctrl_' + id);
   localStorage.removeItem(_PRE + 'og_pisos_' + id);
   localStorage.removeItem(_PRE + 'snapshots_' + id);
   localStorage.removeItem(_PRE + 'ciclo_' + id);
+  localStorage.removeItem(_PRE + 'semana_ctrl_' + id);
   const idx = datos_listarProyectos().filter(p => p.id !== id);
   _datos_guardarIndice(idx);
   // Eliminar también de Firestore
@@ -104,39 +105,6 @@ function datos_cargarMatrices(idProyecto) {
   return raw ? JSON.parse(raw) : {};
 }
 
-// ── Baseline (matrices de la última semana cerrada para calcular deltas) ─────
-
-function datos_guardarBaseline(idProyecto, matrices) {
-  localStorage.setItem(_PRE + 'baseline_' + idProyecto, JSON.stringify(matrices));
-  _fs_sync(idProyecto);
-}
-
-function datos_cargarBaseline(idProyecto) {
-  const raw = localStorage.getItem(_PRE + 'baseline_' + idProyecto);
-  return raw ? JSON.parse(raw) : {};
-}
-
-// ── Historial OG ─────────────────────────────────────────────────────────────
-
-function datos_cargarHistorialOG(idProyecto) {
-  const raw = localStorage.getItem(_PRE + 'hist_og_' + idProyecto);
-  return raw ? JSON.parse(raw) : [];
-}
-
-function datos_guardarRegistroOG(idProyecto, registro) {
-  const hist = datos_cargarHistorialOG(idProyecto);
-  const idx = hist.findIndex(r => r.semana === registro.semana);
-  if (idx >= 0) hist[idx] = registro; else hist.push(registro);
-  hist.sort((a, b) => a.semana.localeCompare(b.semana));
-  localStorage.setItem(_PRE + 'hist_og_' + idProyecto, JSON.stringify(hist));
-  _fs_sync(idProyecto);
-}
-
-function datos_eliminarRegistroOG(idProyecto, semana) {
-  const hist = datos_cargarHistorialOG(idProyecto).filter(r => r.semana !== semana);
-  localStorage.setItem(_PRE + 'hist_og_' + idProyecto, JSON.stringify(hist));
-}
-
 // ── Control semanal ──────────────────────────────────────────────────────────
 
 function datos_cargarSemanaControl(idProyecto) {
@@ -153,117 +121,14 @@ function datos_limpiarSemanaControl(idProyecto) {
   localStorage.removeItem(_PRE + 'semana_ctrl_' + idProyecto);
 }
 
-// ── Historial Terminaciones ──────────────────────────────────────────────────
-
-function datos_cargarHistorialTerm(idProyecto) {
-  const raw = localStorage.getItem(_PRE + 'hist_term_' + idProyecto);
-  return raw ? JSON.parse(raw) : [];
-}
-
-function datos_guardarCierreSemanal(idProyecto, registro) {
-  // registro: { semana, piso_por_fase, deptos_por_fase, fechaCierre }
-  const hist = datos_cargarHistorialTerm(idProyecto);
-  const idx = hist.findIndex(r => r.semana === registro.semana);
-  if (idx >= 0) hist[idx] = registro; else hist.push(registro);
-  hist.sort((a, b) => a.semana.localeCompare(b.semana));
-  localStorage.setItem(_PRE + 'hist_term_' + idProyecto, JSON.stringify(hist));
-  _fs_sync(idProyecto);
-}
-
-function datos_eliminarCierreSemanal(idProyecto, semana) {
-  const hist = datos_cargarHistorialTerm(idProyecto).filter(r => r.semana !== semana);
-  localStorage.setItem(_PRE + 'hist_term_' + idProyecto, JSON.stringify(hist));
-}
-
-// ── Snapshots semanales (nuevo modelo unificado) ─────────────────────────────
-// Cada snapshot guarda en una sola entrada todo lo que se cerró un viernes:
-// OG (m³ real de la semana + acumulado), Term consolidado por fase, y Term
-// detalle por actividad. La clave canónica es `semana_viernes`. El array se
-// mantiene ordenado cronológicamente por viernes.
-
-function datos_cargarSnapshots(idProyecto) {
-  const raw = localStorage.getItem(_PRE + 'snapshots_' + idProyecto);
-  return raw ? JSON.parse(raw) : [];
-}
-
-function datos_guardarSnapshot(idProyecto, snapshot) {
-  // snapshot debe tener semana_viernes (clave). Upsert: si ya existe ese viernes
-  // se reemplaza; si no, se agrega. Mantiene el array ordenado.
-  if (!snapshot || !snapshot.semana_viernes) {
-    throw new Error('Snapshot inválido: falta semana_viernes');
-  }
-  const lista = datos_cargarSnapshots(idProyecto);
-  const i = lista.findIndex(s => s.semana_viernes === snapshot.semana_viernes);
-  if (i >= 0) lista[i] = snapshot; else lista.push(snapshot);
-  lista.sort((a, b) => a.semana_viernes.localeCompare(b.semana_viernes));
-  localStorage.setItem(_PRE + 'snapshots_' + idProyecto, JSON.stringify(lista));
-  _fs_sync(idProyecto);
-}
-
-function datos_eliminarSnapshot(idProyecto, semana_viernes) {
-  const lista = datos_cargarSnapshots(idProyecto).filter(s => s.semana_viernes !== semana_viernes);
-  localStorage.setItem(_PRE + 'snapshots_' + idProyecto, JSON.stringify(lista));
-}
-
-function datos_obtenerSnapshot(idProyecto, semana_viernes) {
-  return datos_cargarSnapshots(idProyecto).find(s => s.semana_viernes === semana_viernes) || null;
-}
-
-// Devuelve el snapshot más reciente cuyo viernes sea ANTERIOR (estricto) al
-// viernes dado. Usado para carry-forward en el Consolidado (cuando una fila
-// no tiene snapshot propio, hereda del último previo).
-function datos_obtenerSnapshotPrevio(idProyecto, semana_viernes) {
-  const lista = datos_cargarSnapshots(idProyecto);
-  let prev = null;
-  for (const s of lista) {
-    if (s.semana_viernes < semana_viernes) prev = s; else break;
-  }
-  return prev;
-}
-
-// ── Ciclo de actualización activo ────────────────────────────────────────────
-// Existe solo entre "Iniciar actualización" y "Terminar actualización". Guarda
-// el viernes activo, el timestamp de inicio y el baseline de matrices al
-// momento de iniciar (para calcular Δ piso/Δ deptos durante la semana).
-
-function datos_cargarCicloActivo(idProyecto) {
-  const raw = localStorage.getItem(_PRE + 'ciclo_' + idProyecto);
-  return raw ? JSON.parse(raw) : null;
-}
-
-function datos_iniciarCiclo(idProyecto, semana_viernes) {
-  // Clona las matrices actuales como baseline del ciclo. A partir de ahora,
-  // los Δ de la semana se calculan contra esta foto.
-  const matrices = datos_cargarMatrices(idProyecto);
-  const ciclo = {
-    semana_viernes,
-    iniciado_at: new Date().toISOString(),
-    baseline: JSON.parse(JSON.stringify(matrices)),
-  };
-  localStorage.setItem(_PRE + 'ciclo_' + idProyecto, JSON.stringify(ciclo));
-  _fs_sync(idProyecto);
-  return ciclo;
-}
-
-function datos_terminarCicloActivo(idProyecto) {
-  localStorage.removeItem(_PRE + 'ciclo_' + idProyecto);
-  _fs_sync(idProyecto);
-}
-
 // ── Exportar / Importar respaldo ─────────────────────────────────────────────
 
 function datos_exportarRespaldo(idProyecto) {
   return JSON.stringify({
-    version: '2.1',
+    version: '2.2',
     exportadoEn: new Date().toISOString(),
-    proyecto:    datos_cargarProyecto(idProyecto),
-    matrices:    datos_cargarMatrices(idProyecto),
-    baseline:    datos_cargarBaseline(idProyecto),
-    historial_og:   datos_cargarHistorialOG(idProyecto),
-    historial_term: datos_cargarHistorialTerm(idProyecto),
-    snapshots:   datos_cargarSnapshots(idProyecto),
-    ciclo:       datos_cargarCicloActivo(idProyecto),
-    fechas_pisos: datos_cargarFechasPisos(idProyecto),
+    proyecto: datos_cargarProyecto(idProyecto),
+    matrices: datos_cargarMatrices(idProyecto),
   }, null, 2);
 }
 
@@ -273,81 +138,7 @@ function datos_importarRespaldo(jsonTexto) {
   const id = obj.proyecto.id;
   datos_guardarProyecto(obj.proyecto);
   datos_guardarMatrices(id, obj.matrices || {});
-  datos_guardarBaseline(id, obj.baseline || {});
-  if (obj.historial_og)   localStorage.setItem(_PRE + 'hist_og_'   + id, JSON.stringify(obj.historial_og));
-  if (obj.historial_term) localStorage.setItem(_PRE + 'hist_term_' + id, JSON.stringify(obj.historial_term));
-  if (obj.snapshots)      localStorage.setItem(_PRE + 'snapshots_' + id, JSON.stringify(obj.snapshots));
-  if (obj.ciclo)          localStorage.setItem(_PRE + 'ciclo_'     + id, JSON.stringify(obj.ciclo));
-  if (obj.fechas_pisos)   datos_guardarFechasPisos(id, obj.fechas_pisos);
   return id;
-}
-
-// ── Fechas término pisos (OG) ────────────────────────────────────────────────
-
-function datos_cargarFechasPisos(idProyecto) {
-  const raw = localStorage.getItem(_PRE + 'og_pisos_' + idProyecto);
-  return raw ? JSON.parse(raw) : {};
-}
-
-function datos_guardarFechasPisos(idProyecto, obj) {
-  localStorage.setItem(_PRE + 'og_pisos_' + idProyecto, JSON.stringify(obj));
-  _fs_sync(idProyecto);
-}
-
-// ── Migración: canon de semana al viernes ────────────────────────────────────
-// Limpia historiales que quedaron con fecha de lunes (canon antiguo) y los
-// convierte a fecha de viernes. Si hay duplicados (mismo viernes con un viejo
-// y uno nuevo), conserva el más reciente del array. Se ejecuta una vez por
-// proyecto; marca config._canonViernes = true al terminar.
-
-function datos_migrarCanonViernes(idProyecto) {
-  const config = datos_cargarProyecto(idProyecto);
-  if (!config) return;
-  if (config._canonViernes) return; // Ya migrado.
-
-  // Mapa lunes (s.fecha) → viernes (s.fecha_termino) desde ambos schedules.
-  const lunesAViernes = new Map();
-  (config.og?.schedule || []).forEach(s => {
-    if (s.fecha && s.fecha_termino) lunesAViernes.set(s.fecha, s.fecha_termino);
-  });
-  (config.term_schedule || []).forEach(s => {
-    if (s.fecha && s.fecha_termino) lunesAViernes.set(s.fecha, s.fecha_termino);
-  });
-
-  // ── Historial OG ────────────────────────────────────────────────────────────
-  const histOG = datos_cargarHistorialOG(idProyecto);
-  const mapOG  = new Map();
-  histOG.forEach(r => {
-    const semNueva = lunesAViernes.get(r.semana) || r.semana;
-    // hist viene ordenado por semana; iteración tardía sobreescribe a la temprana,
-    // que es exactamente lo que queremos (viernes post-fix gana al lunes pre-fix).
-    mapOG.set(semNueva, { ...r, semana: semNueva });
-  });
-  const histOGNuevo = Array.from(mapOG.values())
-    .sort((a, b) => a.semana.localeCompare(b.semana));
-  localStorage.setItem(_PRE + 'hist_og_' + idProyecto, JSON.stringify(histOGNuevo));
-
-  // ── Historial Terminaciones ────────────────────────────────────────────────
-  const histTerm = datos_cargarHistorialTerm(idProyecto);
-  const mapTerm  = new Map();
-  histTerm.forEach(r => {
-    const semNueva = lunesAViernes.get(r.semana) || r.semana;
-    mapTerm.set(semNueva, { ...r, semana: semNueva });
-  });
-  const histTermNuevo = Array.from(mapTerm.values())
-    .sort((a, b) => a.semana.localeCompare(b.semana));
-  localStorage.setItem(_PRE + 'hist_term_' + idProyecto, JSON.stringify(histTermNuevo));
-
-  // Marcar como migrado.
-  config._canonViernes = true;
-  datos_guardarProyecto(config);
-}
-
-function datos_migrarTodosACanonViernes() {
-  datos_listarProyectos().forEach(p => {
-    try { datos_migrarCanonViernes(p.id); }
-    catch (err) { console.warn('Migración canon viernes falló para', p.id, err); }
-  });
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -413,13 +204,7 @@ function _fs_subirProyecto(id) {
   const doc = {
     config,
     matrices:      datos_cargarMatrices(id)      || {},
-    baseline:      datos_cargarBaseline(id)      || {},
     semanaControl: datos_cargarSemanaControl(id) || null,
-    ciclo:         datos_cargarCicloActivo(id)   || null,
-    fechasPisos:   datos_cargarFechasPisos(id)   || {},
-    snapshots:     datos_cargarSnapshots(id)     || [],
-    historialOG:   datos_cargarHistorialOG(id)   || [],
-    historialTerm: datos_cargarHistorialTerm(id) || [],
     _sincEn:        ahora,
     _dispositivoId: _DEVICE_ID,  // identifica el origen; el listener lo usa para ignorar echos
     _app:           'Avances_Obras', // identifica la app en Firebase
@@ -495,13 +280,7 @@ function datos_iniciarListenerFirestore() {
         _datos_guardarIndice(idx);
 
         if (d.matrices)                                    localStorage.setItem(_PRE + 'matrices_'    + id, JSON.stringify(d.matrices));
-        if (d.baseline)                                    localStorage.setItem(_PRE + 'baseline_'    + id, JSON.stringify(d.baseline));
         if (d.semanaControl)                               localStorage.setItem(_PRE + 'semana_ctrl_' + id, JSON.stringify(d.semanaControl));
-        if (d.ciclo)                                       localStorage.setItem(_PRE + 'ciclo_'       + id, JSON.stringify(d.ciclo));
-        if (d.fechasPisos)                                 localStorage.setItem(_PRE + 'og_pisos_'    + id, JSON.stringify(d.fechasPisos));
-        if (d.snapshots     && d.snapshots.length)         localStorage.setItem(_PRE + 'snapshots_'   + id, JSON.stringify(d.snapshots));
-        if (d.historialOG   && d.historialOG.length)       localStorage.setItem(_PRE + 'hist_og_'     + id, JSON.stringify(d.historialOG));
-        if (d.historialTerm && d.historialTerm.length)     localStorage.setItem(_PRE + 'hist_term_'   + id, JSON.stringify(d.historialTerm));
       }
     });
 

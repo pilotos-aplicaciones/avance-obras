@@ -21,9 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
   _interfaz_aplicarModoDispositivo();
   _interfaz_registrarNavegacionGlobal();
   _interfaz_registrarModal();
-  // Limpieza única: convierte historiales viejos (etiquetados con lunes) al
-  // canon de viernes. Es idempotente: marca el proyecto y no vuelve a correr.
-  datos_migrarTodosACanonViernes();
   router_ir('v-inicio');
 
   // Iniciar listener en tiempo real con Firestore.

@@ -183,20 +183,6 @@
     document.head.appendChild(s);
   })();
 </script>
-<!-- Gráficos (Chart.js) — local primero, CDN como respaldo -->
-<script>
-  (function() {
-    var s = document.createElement('script');
-    s.src = 'js/vendor/chart.umd.min.js';
-    s.onerror = function() {
-      var fb = document.createElement('script');
-      fb.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-      document.head.appendChild(fb);
-    };
-    document.head.appendChild(s);
-  })();
-</script>
-
 <!-- Firebase SDK (versión compat — sin necesidad de npm ni compilador) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -210,7 +196,6 @@
 <script src="js/proyectos.js"></script>
 <script src="js/semana-control.js"></script>
 <script src="js/config-proyecto.js"></script>
-<script src="js/importar.js"></script>
 <script src="js/terminaciones.js"></script>
 
 <!-- Inicializador (siempre al último) -->

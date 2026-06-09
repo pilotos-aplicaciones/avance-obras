@@ -250,22 +250,6 @@ function _cf_paso4() {
   </div>`;
 }
 
-function _cf_previewTablaOG() {
-  const rows = (_cf.og?.schedule || []).slice(0, 5);
-  if (rows.length === 0) return '';
-  const filas = rows.map(r => `<tr><td>${logica_formatearFecha(r.fecha)}</td><td>${r.m3_semanal != null ? r.m3_semanal : '—'}</td><td>${r.m3_acumulado != null ? r.m3_acumulado : '—'}</td></tr>`).join('');
-  const mas = _cf.og.schedule.length > 5 ? `<p class="cf-hint" style="margin-top:.25rem">… y ${_cf.og.schedule.length - 5} semanas más.</p>` : '';
-  return `<table class="tabla-preview"><thead><tr><th>Semana</th><th>M³ Sem.</th><th>M³ Acum.</th></tr></thead><tbody>${filas}</tbody></table>${mas}`;
-}
-
-function _cf_previewTablaTerm() {
-  const rows = (_cf.term_schedule || []).slice(0, 5);
-  if (rows.length === 0) return '';
-  const filas = rows.map(r => `<tr><td>${logica_formatearFecha(r.fecha)}</td><td>${r.piso_og ?? '—'}</td><td>${r.f1 ?? '—'}</td><td>${r.f2 ?? '—'}</td><td>…</td></tr>`).join('');
-  const mas = _cf.term_schedule.length > 5 ? `<p class="cf-hint" style="margin-top:.25rem">… y ${_cf.term_schedule.length - 5} semanas más.</p>` : '';
-  return `<table class="tabla-preview"><thead><tr><th>Semana</th><th>OG</th><th>F1</th><th>F2</th><th>…</th></tr></thead><tbody>${filas}</tbody></table>${mas}`;
-}
-
 // ── Registro de eventos por paso ─────────────────────────────────────────────
 
 function _cf_registrarEventosPaso() {

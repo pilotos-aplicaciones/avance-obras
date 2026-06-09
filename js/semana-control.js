@@ -56,8 +56,6 @@ function semanaCtrl_renderBarra(id) {
   _sc_registrarEventos();
 }
 
-function semanaCtrl_abrirGestionResponsables(id) {}
-
 // ── Calendario ────────────────────────────────────────────────────────────────
 
 function _sc_renderCal() {
@@ -161,7 +159,17 @@ function _sc_registrarEventos() {
   // Abrir / cerrar dropdown
   btn?.addEventListener('click', e => {
     e.stopPropagation();
-    dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+    const abrir = dd.style.display === 'none';
+    dd.style.display = abrir ? 'block' : 'none';
+    // En sidebar de escritorio (overflow-x:hidden), usar position:fixed
+    // calculado desde el bounding rect del botón para no quedar recortado.
+    if (abrir && btn.closest('.mat-sidebar')) {
+      const rect = btn.getBoundingClientRect();
+      dd.style.position = 'fixed';
+      dd.style.top      = (rect.bottom + 4) + 'px';
+      dd.style.left     = rect.left + 'px';
+      dd.style.right    = 'auto';
+    }
   });
 
   // Click en día del calendario (delegado)
@@ -192,77 +200,3 @@ function _sc_registrarEventos() {
   // Botones de ciclo eliminados en versión prueba de terreno.
 }
 
-// ── Ciclo de actualización ───────────────────────────────────────────────────
-// Estas funciones implementan el contrato de "Iniciar / Terminar actualización"
-// descrito en el modelo de datos: al iniciar se fija el baseline para los Δ;
-// al terminar se construye el snapshot completo (OG + Term Consolidado + Term
-// Detalle) y se guarda en el histórico.
-
-function semanaCtrl_iniciarActualizacion(id, viernes) {
-  if (!viernes) {
-    interfaz_mostrarToast(
-      'Selecciona primero un viernes en la barra para iniciar la actualización.',
-      'error'
-    );
-    return;
-  }
-  const previo = datos_cargarCicloActivo(id);
-  if (previo && previo.semana_viernes !== viernes) {
-    interfaz_mostrarToast(
-      `Ya hay un ciclo activo para ${logica_formatearFecha(previo.semana_viernes)}.
-       Termínalo antes de iniciar otro.`,
-      'error'
-    );
-    return;
-  }
-  if (previo && previo.semana_viernes === viernes) return; // idempotente
-
-  interfaz_mostrarModal(
-    'Iniciar actualización',
-    `Se va a iniciar el ciclo de avances para la semana del ${logica_formatearFecha(viernes)}. ` +
-    `A partir de ahora los Δ piso / Δ deptos se calculan respecto al estado actual.`,
-    () => {
-      datos_iniciarCiclo(id, viernes);
-      interfaz_mostrarToast(
-        `Actualización iniciada para ${logica_formatearFecha(viernes)}.`,
-        'exito'
-      );
-      router_ir('v-proyecto'); // refresca barra + pestaña activa
-    }
-  );
-}
-
-function semanaCtrl_terminarActualizacion(id) {
-  const ciclo = datos_cargarCicloActivo(id);
-  if (!ciclo) {
-    interfaz_mostrarToast('No hay actualización activa.', 'error');
-    return;
-  }
-  const viernes = ciclo.semana_viernes;
-
-  interfaz_mostrarModal(
-    'Terminar actualización',
-    `Guardar el snapshot semanal del ${logica_formatearFecha(viernes)}: OG completo + ` +
-    `Term Consolidado por fase + Term Detalle por actividad. Esta semana quedará ` +
-    `registrada en el histórico.`,
-    () => {
-      const config     = datos_cargarProyecto(id);
-      const matrices   = datos_cargarMatrices(id);
-      const baseline   = ciclo.baseline || {};
-      const histOG     = datos_cargarHistorialOG(id);
-      const ogRegistro = histOG.find(r => r.semana === viernes) || null;
-      const snapshot   = logica_construirSnapshot(config, viernes, matrices, baseline, ogRegistro);
-      datos_guardarSnapshot(id, snapshot);
-      datos_terminarCicloActivo(id);
-      // Actualizamos el baseline legado de Terminaciones para que los Δ que
-      // se muestran en pantalla (cuando no hay ciclo activo) sean coherentes.
-      // Una vez que el ciclo esté terminado, las matrices = baseline y Δ = 0.
-      datos_guardarBaseline(id, JSON.parse(JSON.stringify(matrices)));
-      interfaz_mostrarToast(
-        `Snapshot del ${logica_formatearFecha(viernes)} guardado.`,
-        'exito'
-      );
-      router_ir('v-proyecto');
-    }
-  );
-}

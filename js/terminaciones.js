@@ -79,18 +79,7 @@ function terminaciones_inicializar(idProyecto) {
   _mat_config   = datos_cargarProyecto(idProyecto);
   if (!_mat_config) return;
   _mat_datos    = datos_cargarMatrices(idProyecto);
-  // Baseline: si hay ciclo activo, usar el baseline del ciclo (foto del inicio
-  // de la semana). Si no, usar el legado `coa_baseline_<id>` (foto del último
-  // cierre). Si tampoco existe, baseline = matrices actuales → Δ = 0.
-  const ciclo = datos_cargarCicloActivo(idProyecto);
-  if (ciclo && ciclo.baseline) {
-    _mat_baseline = ciclo.baseline;
-  } else {
-    const baseLegacy = datos_cargarBaseline(idProyecto);
-    _mat_baseline = baseLegacy && Object.keys(baseLegacy).length > 0
-      ? baseLegacy
-      : JSON.parse(JSON.stringify(_mat_datos));
-  }
+  _mat_baseline = {};
   _mat_deptos   = logica_listaDeptosPlana(_mat_config.departamentos || []);
   _mat_fasesActivas = logica_fasesEfectivas(_mat_config);
 
@@ -347,8 +336,6 @@ function _mat_renderContenido() {
 
   if (_mat_tabActiva === 'resumen') {
     contenido.innerHTML = _mat_tablaResumen();
-  } else if (_mat_tabActiva === 'consolidado') {
-    contenido.innerHTML = _mat_tablaConsolidado();
   } else if (_mat_tabActiva === 'todas') {
     contenido.innerHTML = _mat_fasesActivas.map(f => _mat_tablaFase(f)).join('');
   } else if (_mat_tabActiva.startsWith('fase_')) {
@@ -357,8 +344,6 @@ function _mat_renderContenido() {
   }
   _mat_registrarEventosCeldas();
   _term_aplicarStickyH();
-  _mat_aplicarLayoutPanel();
-  if (_mat_tabActiva === 'consolidado') _mat_aplicarStickyConsolidado();
   if (_mat_colsOcultas) _mat_aplicarToggleCols();
 }
 
@@ -449,206 +434,6 @@ function _mat_tablaResumen() {
 // OG (solo Piso) + cada fase activa (% y Piso). Paso 1: columnas Programado
 // se llenan desde config.term_schedule; las columnas Real quedan en "—" por
 // ahora (se completarán en el Paso 2).
-
-function _mat_tablaConsolidado() {
-  const schedTerm = _mat_config.term_schedule || [];
-  if (schedTerm.length === 0) {
-    return `<div class="mat-vacio"><p class="cf-hint">Sin planificación inicial cargada. Importa el archivo de planificación desde la configuración del proyecto para ver esta pestaña.</p></div>`;
-  }
-
-  const ctrlSemana = datos_cargarSemanaControl(_mat_id)?.semana || null;
-  const fases      = _mat_fasesActivas;
-  // Cantidad de columnas por bloque (Programado / Real):
-  //   1 (OG Piso) + 2 por cada fase activa (% + Piso).
-  const nColsBloque = 1 + fases.length * 2;
-
-  // ── <colgroup> para anchos uniformes (table-layout: fixed) ────────────────
-  // Las columnas de fecha son un poco más anchas; todas las de fase/OG comparten
-  // el mismo ancho. Así Programado y Real son visualmente simétricos.
-  const colFase = '<col class="col-cons-num">';
-  const colgroup = `
-    <colgroup>
-      <col class="col-cons-fecha">
-      <col class="col-cons-fecha">
-      ${colFase}${fases.map(() => colFase + colFase).join('')}
-      ${colFase}${fases.map(() => colFase + colFase).join('')}
-    </colgroup>`;
-
-  // ── Encabezado (3 niveles) ────────────────────────────────────────────────
-  const colorOG = OG_COLOR;
-
-  const tr1 = `
-    <tr>
-      <th rowspan="3" class="th-cons-fecha">Fecha Inicio</th>
-      <th rowspan="3" class="th-cons-fecha">Fecha Término</th>
-      <th colspan="${nColsBloque}" class="th-cons-grupo th-cons-prog">PROGRAMADO</th>
-      <th colspan="${nColsBloque}" class="th-cons-grupo th-cons-real">REAL</th>
-    </tr>`;
-
-  // Nota: el OG del bloque Real lleva clase `cons-sep-real` para dibujar el
-  // borde divisor entre Programado y Real (en la primera celda de Real).
-  // La celda OG va en negro (con texto blanco) — el celeste del catálogo se
-  // reserva para otras vistas.
-  const enc2Prog = `
-    <th rowspan="2" class="th-cons-fase" style="background:#000;color:#fff">OG</th>
-    ${fases.map(f => `
-      <th colspan="2" class="th-cons-fase" style="background:${FASE_COLORES[f].fondo};color:#000">${NOMBRES_FASES[f].split('–')[0].trim()}</th>
-    `).join('')}`;
-  const enc2Real = `
-    <th rowspan="2" class="th-cons-fase cons-sep-real" style="background:#000;color:#fff">OG</th>
-    ${fases.map(f => `
-      <th colspan="2" class="th-cons-fase" style="background:${FASE_COLORES[f].fondo};color:#000">${NOMBRES_FASES[f].split('–')[0].trim()}</th>
-    `).join('')}`;
-  const tr2 = `<tr>${enc2Prog}${enc2Real}</tr>`;
-
-  // Nivel 3: solo sub-cabeceras de fases (OG ya hizo rowspan=2). El primer "%"
-  // del bloque Real lleva la marca de separador.
-  const enc3Prog = fases.map(() => `<th class="th-cons-sub">%</th><th class="th-cons-sub">Piso</th>`).join('');
-  const enc3Real = fases.map((_, i) =>
-    `<th class="th-cons-sub${i === 0 ? ' cons-sep-real' : ''}">%</th><th class="th-cons-sub">Piso</th>`
-  ).join('');
-  const tr3 = `<tr>${enc3Prog}${enc3Real}</tr>`;
-
-  // ── Filas de datos ────────────────────────────────────────────────────────
-  const fmtNum = v => (v === null || v === undefined || isNaN(v)) ? '—' : interfaz_fmtNum(v, 1);
-  const fmtPct = v => (v === null || v === undefined || isNaN(v)) ? '—' : interfaz_fmtNum(v * 100, 1) + '%';
-
-  const filas = schedTerm.map(s => {
-    const fInicio   = s.fecha ? logica_formatearFecha(s.fecha) : '—';
-    const fTermino  = s.fecha_termino ? logica_formatearFecha(s.fecha_termino) : '—';
-    const semKey    = s.fecha_termino || s.fecha;
-    const esCtrl    = ctrlSemana !== null && semKey === ctrlSemana;
-    const clase     = esCtrl ? 'cons-fila-actual' : '';
-
-    // Programado: OG Piso + (% + Piso) por fase.
-    const celdasProg = `
-      <td class="num">${fmtNum(s.piso_og)}</td>
-      ${fases.map(f => `
-        <td class="num">${fmtPct(s['f' + f + '_pct'])}</td>
-        <td class="num">${fmtNum(s['f' + f])}</td>
-      `).join('')}`;
-
-    // Real: vacío por ahora — se completa en Paso 2. La primera celda lleva
-    // `cons-sep-real` para alinear el borde divisor del bloque.
-    const celdasReal = `
-      <td class="num cons-sep-real">—</td>
-      ${fases.map(() => `<td class="num">—</td><td class="num">—</td>`).join('')}`;
-
-    return `<tr class="${clase}">
-      <td class="cons-col-fecha">${fInicio}</td>
-      <td class="cons-col-fecha">${fTermino}</td>
-      ${celdasProg}
-      ${celdasReal}
-    </tr>`;
-  }).join('');
-
-  // Patrón tipo OG: el panel padre adopta layout flex (vía clase
-  // `panel-consolidado` que se aplica en _mat_aplicarLayoutPanel), y este
-  // wrapper `consolidado-wrap` se vuelve el ÚNICO contenedor de scroll. Toolbar
-  // y barra de cierre quedan arriba del wrapper, sin moverse. Sticky thead +
-  // sticky left de columnas de fecha se aplican vía JS contra este wrapper.
-  return `
-  <div class="consolidado-wrap">
-    <table class="tabla-mat tabla-consolidado">
-      ${colgroup}
-      <thead>
-        ${tr1}
-        ${tr2}
-        ${tr3}
-      </thead>
-      <tbody>${filas}</tbody>
-    </table>
-  </div>`;
-}
-
-// Activa el layout flex column en #panel-tab-term solo cuando estamos en la
-// pestaña Consolidado (vía clase `panel-consolidado`). En otras pestañas la
-// clase se quita y el panel vuelve a su comportamiento original (scroll en el
-// panel mismo). Esto se llama en cada cambio de pestaña.
-function _mat_aplicarLayoutPanel() {
-  const panel = document.getElementById('panel-tab-term');
-  if (!panel) return;
-  if (interfaz_esMovil()) {
-    // Móvil: el panel mismo es el contenedor de scroll
-    panel.classList.toggle('panel-consolidado', _mat_tabActiva === 'consolidado');
-  } else {
-    // Escritorio: sidebar layout — aplicar al área de contenido, no al panel
-    panel.classList.remove('panel-consolidado');
-    const area = document.getElementById('mat-area-contenido');
-    if (area) area.classList.toggle('panel-consolidado', _mat_tabActiva === 'consolidado');
-  }
-}
-
-// Aplica sticky-top + sticky-left al encabezado del Consolidado:
-//  • Las 3 filas del thead quedan pegadas arriba (top acumulado).
-//  • Las 2 columnas de fecha (Fecha Inicio, Fecha Término) quedan pegadas a la
-//    izquierda (left acumulado).
-//  • La esquina superior izquierda (intersección) recibe ambos sticky con el
-//    z-index más alto para tapar el cruce.
-//
-// La medición de altura ignora TH con rowspan>1 (las celdas de fecha que se
-// extienden a 3 filas) para no inflar la altura. La medición de ancho de las
-// columnas de fecha se hace con getBoundingClientRect (acepta decimales).
-//
-// Z-index escalonado:
-//  Esquina (TH fecha en thead)      = 9
-//  TH normal fila 1                  = 6
-//  TH normal fila 2                  = 5
-//  TH normal fila 3                  = 4
-//  TD fecha (tbody, sticky left)     = 3
-//  TD normal (tbody)                 = auto
-function _mat_aplicarStickyConsolidado() {
-  const tabla = document.querySelector('#mat-contenido .tabla-consolidado');
-  if (!tabla) return;
-
-  // ── Sticky top de las 3 filas del thead ────────────────────────────────
-  const filasHead = tabla.querySelectorAll('thead tr');
-  const alturas = [];
-  filasHead.forEach(tr => {
-    let h = 0;
-    tr.querySelectorAll('th').forEach(th => {
-      const rs = parseInt(th.getAttribute('rowspan') || '1');
-      if (rs === 1 && th.offsetHeight > h) h = th.offsetHeight;
-    });
-    alturas.push(h);
-  });
-  let acumTop = 0;
-  filasHead.forEach((tr, i) => {
-    tr.querySelectorAll('th').forEach(th => {
-      th.style.position = 'sticky';
-      th.style.top      = acumTop + 'px';
-      th.style.zIndex   = 7 - i; // fila 1 → 6, fila 2 → 5, fila 3 → 4
-    });
-    acumTop += alturas[i];
-  });
-
-  // ── Sticky left de las 2 columnas de fecha ─────────────────────────────
-  // Las TH de fecha en el thead (rowspan=3) están en la primera fila. Sus
-  // anchos se toman para calcular los lefts acumulados.
-  const fechaThs = tabla.querySelectorAll('thead .th-cons-fecha');
-  if (fechaThs.length < 2) return;
-  const w0 = fechaThs[0].getBoundingClientRect().width;
-
-  // Esquina superior izquierda: ambos sticky con z-index 9 (más alto que
-  // cualquier otra celda) para tapar cuando se cruzan los dos scrolls.
-  fechaThs[0].style.left   = '0px';
-  fechaThs[0].style.zIndex = 9;
-  fechaThs[1].style.left   = w0 + 'px';
-  fechaThs[1].style.zIndex = 9;
-
-  // TBody: cada fila tiene los dos TD de fecha al inicio (clase cons-col-fecha).
-  // Se aplican sticky-left con los mismos offsets que las TH de arriba.
-  tabla.querySelectorAll('tbody tr').forEach(tr => {
-    const tdsFecha = tr.querySelectorAll('.cons-col-fecha');
-    if (tdsFecha.length < 2) return;
-    tdsFecha[0].style.position = 'sticky';
-    tdsFecha[0].style.left     = '0px';
-    tdsFecha[0].style.zIndex   = 3;
-    tdsFecha[1].style.position = 'sticky';
-    tdsFecha[1].style.left     = w0 + 'px';
-    tdsFecha[1].style.zIndex   = 3;
-  });
-}
 
 // ── Tabla por Fase ───────────────────────────────────────────────────────────
 
@@ -758,14 +543,19 @@ function _term_aplicarStickyH() {
   document.querySelectorAll('#mat-contenido .tabla-mat:not(.tabla-resumen):not(.tabla-consolidado)').forEach(function(tabla) {
     tabla.querySelectorAll('thead tr').forEach(function(tr) {
       if (tr.classList.contains('fila-fase-titulo')) return;
-      [0, 2, 3, 4].forEach(function(idx) {
-        if (tr.children[idx]) tr.children[idx].style.display = _abreMovil ? 'none' : '';
-      });
+      // No resetear si _mat_colsOcultas está activo — _mat_aplicarToggleCols los controla
+      if (!_mat_colsOcultas) {
+        [0, 2, 3, 4].forEach(function(idx) {
+          if (tr.children[idx]) tr.children[idx].style.display = _abreMovil ? 'none' : '';
+        });
+      }
     });
     tabla.querySelectorAll('tbody tr').forEach(function(tr) {
-      [0, 2, 3, 4].forEach(function(idx) {
-        if (tr.children[idx]) tr.children[idx].style.display = _abreMovil ? 'none' : '';
-      });
+      if (!_mat_colsOcultas) {
+        [0, 2, 3, 4].forEach(function(idx) {
+          if (tr.children[idx]) tr.children[idx].style.display = _abreMovil ? 'none' : '';
+        });
+      }
     });
   });
 
@@ -1314,95 +1104,6 @@ function _mat_pasteHandler(e) {
 }
 
 // ── Cierre semanal ───────────────────────────────────────────────────────────
-
-function _mat_cerrarSemana() {
-  // El cierre siempre se guarda con el viernes seleccionado en la barra de control.
-  const ctrl = datos_cargarSemanaControl(_mat_id);
-  if (!ctrl || !ctrl.semana) {
-    interfaz_mostrarToast(
-      'Selecciona primero un viernes en la barra superior para poder cerrar la semana.',
-      'error'
-    );
-    return;
-  }
-  const semana = ctrl.semana;
-  const hist   = datos_cargarHistorialTerm(_mat_id);
-  if (hist.find(r => r.semana === semana)) {
-    interfaz_mostrarModal(
-      'Semana ya cerrada',
-      `Ya existe un cierre para la semana ${logica_formatearFecha(semana)}. ¿Sobreescribir?`,
-      () => _mat_ejecutarCierre(semana)
-    );
-    return;
-  }
-  interfaz_mostrarModal(
-    'Cerrar semana',
-    `Guardar snapshot de terminaciones para la semana ${logica_formatearFecha(semana)}. El estado actual quedará como baseline para calcular deltas de la próxima semana.`,
-    () => _mat_ejecutarCierre(semana)
-  );
-}
-
-function _mat_ejecutarCierre(semana) {
-  // El cierre siempre considera el proyecto completo (sin filtro de piso).
-  const deptos        = logica_listaDeptosPlana(_mat_config.departamentos || []);
-  const departamentos = _mat_config.departamentos || [];
-  const piso_por_fase = {};
-  const deptos_por_fase = {};
-
-  _mat_fasesActivas.forEach(fase => {
-    const faseKey = 'fase_' + fase;
-    const nums    = logica_actividadesDeFase(_mat_config, fase);
-    piso_por_fase[fase]   = logica_pisoFase(_mat_datos, faseKey, nums, deptos, departamentos);
-    deptos_por_fase[fase] = logica_deptosCompletadosFase(_mat_datos, faseKey, nums, deptos);
-  });
-
-  datos_guardarCierreSemanal(_mat_id, {
-    semana,
-    piso_por_fase,
-    deptos_por_fase,
-    fechaCierre: new Date().toISOString(),
-  });
-
-  // El estado actual se convierte en la nueva baseline
-  datos_guardarBaseline(_mat_id, JSON.parse(JSON.stringify(_mat_datos)));
-  _mat_baseline = datos_cargarBaseline(_mat_id);
-
-  interfaz_mostrarToast(`Semana ${logica_formatearFecha(semana)} cerrada.`, 'exito');
-  _mat_render();
-}
-
-// ── Historial de cierres ─────────────────────────────────────────────────────
-
-function _mat_renderHistorial() {
-  const hist = datos_cargarHistorialTerm(_mat_id);
-  if (!hist || hist.length === 0) return '<p class="cf-hint">Sin cierres semanales registrados.</p>';
-
-  const cols = _mat_fasesActivas.map(f => `<th>${NOMBRES_FASES[f].split('–')[0].trim()}</th>`).join('');
-  const filas = [...hist].reverse().map((r, i, arr) => {
-    const prev = arr[i + 1];
-    const cds  = _mat_fasesActivas.map(fase => {
-      const val   = r.piso_por_fase?.[fase] ?? 0;
-      const base  = prev?.piso_por_fase?.[fase] ?? 0;
-      const delta = val - base;
-      return `<td class="num">${interfaz_fmtNum(val)} <small class="delta ${delta > 0 ? 'pos' : ''}">${delta > 0 ? '+' : ''}${interfaz_fmtNum(delta)}</small></td>`;
-    }).join('');
-
-    return `<tr>
-      <td>${logica_formatearFecha(r.semana)}</td>
-      ${cds}
-      <td><button class="btn-icono btn-peligro mat-del-cierre" data-sem="${r.semana}">✕</button></td>
-    </tr>`;
-  }).join('');
-
-  return `
-  <h4>Historial de cierres semanales</h4>
-  <div class="tabla-scroll">
-    <table class="tabla-mat">
-      <thead><tr><th>Semana</th>${cols}<th></th></tr></thead>
-      <tbody>${filas}</tbody>
-    </table>
-  </div>`;
-}
 
 // ── Registro de eventos de la vista ─────────────────────────────────────────
 
