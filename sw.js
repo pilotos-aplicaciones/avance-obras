@@ -1,5 +1,5 @@
 // Service Worker — COA prueba de terreno
-const CACHE = 'coa-v3.1';
+const CACHE = 'coa-v3.2';
 const ARCHIVOS = [
   './',
   './index.html',

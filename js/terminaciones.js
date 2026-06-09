@@ -25,6 +25,8 @@ let _touchStartX         = 0;
 let _touchStartY         = 0;
 let _esScrollando        = false;   // true cuando el gesto táctil es scroll vertical
 let _ultimoFueToque      = false;   // bloquea el click sintético que el browser dispara tras touchend
+let _touchTimer          = null;    // timer long press (350ms) para activar modo arrastre
+let _touchModoArrastre   = false;   // true cuando el long press activó selección de celdas
 
 const VALORES_CICLO = [0, 25, 50, 75, 100];
 
@@ -973,15 +975,23 @@ function _mat_registrarEventosCeldas() {
     });
 
     td.addEventListener('touchstart', e => {
-      // No bloqueamos el scroll aquí — esperamos el primer movimiento para decidir
-      _esScrollando = false;
-      _arrastrando  = false;
-      _touchStartX  = e.touches[0].clientX;
-      _touchStartY  = e.touches[0].clientY;
-      _sel.clear();
-      _ancla = td;
-      _sel.add(td);
-      td.classList.add('seleccionada');
+      clearTimeout(_touchTimer);
+      _esScrollando      = false;
+      _touchModoArrastre = false;
+      _ultimoFueToque    = false;
+      _touchStartX       = e.touches[0].clientX;
+      _touchStartY       = e.touches[0].clientY;
+
+      // Timer 350ms: si el dedo no se mueve, activa el modo arrastre
+      _touchTimer = setTimeout(() => {
+        if (_esScrollando) return;
+        _touchModoArrastre = true;
+        _sel.clear();
+        _ancla = td;
+        _sel.add(td);
+        td.classList.add('seleccionada');
+        if (navigator.vibrate) navigator.vibrate(30); // vibración suave como feedback
+      }, 350);
     }, { passive: true });
 
     td.addEventListener('touchmove', e => {
@@ -989,39 +999,52 @@ function _mat_registrarEventosCeldas() {
       const dx = Math.abs(t.clientX - _touchStartX);
       const dy = Math.abs(t.clientY - _touchStartY);
 
-      if (!_arrastrando && !_esScrollando) {
-        if (dx < 12 && dy < 12) return; // movimiento pequeño: esperar para decidir
-        // Scroll: claramente más vertical (ratio 1.5x para no confundir diagonales)
-        if (dy > dx * 1.5) {
-          _esScrollando = true;
-          _sel.clear();
-          document.querySelectorAll('.celda-mat.seleccionada').forEach(c => c.classList.remove('seleccionada'));
-          return; // no preventDefault → el browser scrollea normalmente
-        }
-        _arrastrando = true; // claramente horizontal → selección de celdas
+      if (_touchModoArrastre) {
+        // Modo arrastre activo: bloquear scroll y expandir selección
+        e.preventDefault();
+        _ptrClientX = t.clientX;
+        _ptrClientY = t.clientY;
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        const target = el?.closest('.celda-mat');
+        if (target && _ancla) _mat_seleccionarRango(_ancla, target, _sel);
+        if (!_scrollRAF) _scrollRAF = requestAnimationFrame(_mat_autoScrollLoop);
+        return;
       }
 
-      if (_esScrollando) return;
-
-      // Es selección de celdas: bloquear scroll y expandir rango
-      e.preventDefault();
-      _ptrClientX = t.clientX;
-      _ptrClientY = t.clientY;
-      const el = document.elementFromPoint(t.clientX, t.clientY);
-      const target = el?.closest('.celda-mat');
-      if (target && _ancla) _mat_seleccionarRango(_ancla, target, _sel);
-      if (!_scrollRAF) _scrollRAF = requestAnimationFrame(_mat_autoScrollLoop);
+      // Antes de los 350ms: si el dedo se movió > 10px es scroll → cancelar timer
+      if (dx > 10 || dy > 10) {
+        clearTimeout(_touchTimer);
+        _esScrollando = true;
+      }
     }, { passive: false });
 
     td.addEventListener('touchend', () => {
-      _ultimoFueToque = true; // bloquear el click sintético que llega después
+      clearTimeout(_touchTimer);
+      _ultimoFueToque = true; // bloquear click sintético que llega después
       _mat_detenerAutoScroll();
-      if (_esScrollando) { _esScrollando = false; _arrastrando = false; return; }
-      if (!presencia_esModoEditor()) { _arrastrando = false; return; } // modo visualizador
-      // Toque simple o selección múltiple: siempre mostrar burbuja
-      _mat_mostrarSelectorFlotante(_sel);
-      _arrastrando  = false;
-      _esScrollando = false;
+
+      if (_esScrollando) {
+        _esScrollando      = false;
+        _touchModoArrastre = false;
+        return;
+      }
+      if (!presencia_esModoEditor()) {
+        _touchModoArrastre = false;
+        return;
+      }
+
+      if (_touchModoArrastre) {
+        // Fin del arrastre → burbuja con todas las celdas seleccionadas
+        _mat_mostrarSelectorFlotante(_sel);
+      } else {
+        // Tap corto → burbuja para esta celda
+        _sel.clear();
+        _ancla = td;
+        _sel.add(td);
+        _mat_mostrarSelectorFlotante(_sel);
+      }
+      _touchModoArrastre = false;
+      _esScrollando      = false;
     });
   });
 
