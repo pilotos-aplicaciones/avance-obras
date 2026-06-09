@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Avances — RVC</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#D13039">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="COA">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     VISTA INICIO — Grilla de proyectos
+     ══════════════════════════════════════════════════════════ -->
+<div id="v-inicio">
+
+  <nav class="navbar">
+    <img src="icons/logo_navbar_app.png" class="navbar-logo-img" alt="COA">
+    <div class="navbar-sep"></div>
+    <span class="navbar-titulo">Control de Avances</span>
+    <span class="navbar-spacer"></span>
+    <button class="btn-secundario btn-sm solo-escritorio" id="btn-importar">⬆ Importar</button>
+    <button class="btn-primario solo-escritorio" id="btn-nuevo-proyecto">+ Nuevo Proyecto</button>
+    <span class="sync-indicator" data-estado="ok"><span class="sync-dot"></span><span class="sync-label">Sincronizado</span></span>
+    <span class="app-version">v2.9</span>
+  </nav>
+
+  <div class="inicio-header">
+    <span class="inicio-titulo">Proyectos</span>
+    <div class="orden-btns">
+      <button class="orden-btn activo" data-orden="antiguedad">Recientes</button>
+      <button class="orden-btn" data-orden="alfabetico">A–Z</button>
+      <button class="orden-btn" data-orden="zona">Zona</button>
+    </div>
+  </div>
+
+  <div class="inicio-body">
+    <div class="grilla-proyectos" id="grilla-proyectos"></div>
+    <div class="estado-vacio" id="estado-vacio">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <p>No hay proyectos aún.<br>Crea uno para comenzar.</p>
+      <button class="btn-primario solo-escritorio" id="btn-nuevo-proyecto-2">+ Nuevo Proyecto</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     VISTA CONFIGURACIÓN — Wizard crear/editar proyecto
+     ══════════════════════════════════════════════════════════ -->
+<div id="v-config">
+
+  <nav class="navbar">
+    <img src="icons/logo_navbar_app.png" class="navbar-logo-img" alt="COA">
+    <div class="navbar-sep"></div>
+    <span class="navbar-titulo" id="cf-titulo-nav">Nuevo Proyecto</span>
+    <span class="navbar-spacer"></span>
+    <button class="btn-secundario btn-sm" id="cf-btn-cancelar">Cancelar</button>
+    <span class="sync-indicator" data-estado="ok"><span class="sync-dot"></span><span class="sync-label">Sincronizado</span></span>
+    <span class="app-version">v2.9</span>
+  </nav>
+
+  <div class="config-layout">
+    <div class="config-header">
+      <div class="config-titulo" id="cf-titulo-paso">Paso 1 de 4</div>
+      <div class="pasos-indicador">
+        <div class="paso-num" data-paso="1">1</div>
+        <div class="paso-sep"></div>
+        <div class="paso-num" data-paso="2">2</div>
+        <div class="paso-sep"></div>
+        <div class="paso-num" data-paso="3">3</div>
+        <div class="paso-sep"></div>
+        <div class="paso-num" data-paso="4">4</div>
+      </div>
+    </div>
+
+    <div class="config-cuerpo" id="cf-contenido">
+      <!-- renderizado dinámicamente -->
+    </div>
+
+    <div class="config-footer">
+      <button class="btn-secundario" id="cf-btn-anterior" style="display:none">← Anterior</button>
+      <span style="flex:1"></span>
+      <button class="btn-primario" id="cf-btn-siguiente">Siguiente →</button>
+      <button class="btn-primario" id="cf-btn-guardar" style="display:none">✓ Crear proyecto</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     VISTA PROYECTO — 4 tabs de contenido
+     ══════════════════════════════════════════════════════════ -->
+<div id="v-proyecto">
+
+  <nav class="navbar">
+    <img src="icons/logo_navbar_app.png" class="navbar-logo-img" alt="COA">
+    <div class="navbar-sep"></div>
+    <div>
+      <div class="navbar-titulo" id="proyecto-nombre-header">—</div>
+      <div class="navbar-sub"    id="proyecto-sub-header"></div>
+    </div>
+    <div class="navbar-sep"></div>
+    <div class="proyecto-tabs">
+      <button class="tab-btn" data-tab="tab-term">📋 Avances Terminaciones</button>
+    </div>
+    <span class="navbar-spacer"></span>
+    <button class="btn-secundario btn-sm solo-escritorio" id="btn-config-proyecto">⚙ Configurar</button>
+    <button class="btn-secundario btn-sm" id="btn-volver-inicio">← Inicio</button>
+    <span class="sync-indicator" data-estado="ok"><span class="sync-dot"></span><span class="sync-label">Sincronizado</span></span>
+    <span class="app-version">v2.9</span>
+  </nav>
+
+  <!-- Banner modo visualizador: aparece cuando otro dispositivo ya es editor -->
+  <div id="presencia-banner" class="presencia-banner" style="display:none">
+    <span class="presencia-icono">👁</span>
+    <span>Modo visualización · Otro dispositivo está editando este proyecto</span>
+  </div>
+
+  <div id="barra-control"></div>
+
+  <div class="proyecto-body">
+
+    <!-- Tab: Avance Terminaciones -->
+    <div id="panel-tab-term" class="panel-tab" style="display:none">
+      <!-- renderizado por terminaciones.js -->
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     COMPONENTES GLOBALES
+     ══════════════════════════════════════════════════════════ -->
+
+<!-- Modal de confirmación -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-titulo"  id="modal-titulo">Confirmar</div>
+    <div class="modal-mensaje" id="modal-mensaje"></div>
+    <div class="modal-acciones">
+      <button class="btn-secundario" id="modal-cancelar">Cancelar</button>
+      <button class="btn-primario"   id="modal-confirmar">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast de notificaciones -->
+<div class="toast" id="toast"></div>
+
+
+<!-- Botón guardar flotante (aparece cuando hay cambios sin exportar) -->
+<button id="btn-guardar-flotante" title="Guardar respaldo JSON">💾</button>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SCRIPTS — orden de carga requerido
+     ══════════════════════════════════════════════════════════ -->
+<!-- Excel (SheetJS) — local primero, CDN como respaldo -->
+<script>
+  (function() {
+    var s = document.createElement('script');
+    s.src = 'js/vendor/xlsx.full.min.js';
+    s.onload = function() {
+      // El archivo local puede estar vacío y cargar sin error; verificar que XLSX quedó definido.
+      if (typeof XLSX === 'undefined') {
+        var fb = document.createElement('script');
+        fb.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+        document.head.appendChild(fb);
+      }
+    };
+    s.onerror = function() {
+      var fb = document.createElement('script');
+      fb.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      document.head.appendChild(fb);
+    };
+    document.head.appendChild(s);
+  })();
+</script>
+<!-- Gráficos (Chart.js) — local primero, CDN como respaldo -->
+<script>
+  (function() {
+    var s = document.createElement('script');
+    s.src = 'js/vendor/chart.umd.min.js';
+    s.onerror = function() {
+      var fb = document.createElement('script');
+      fb.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+      document.head.appendChild(fb);
+    };
+    document.head.appendChild(s);
+  })();
+</script>
+
+<!-- Firebase SDK (versión compat — sin necesidad de npm ni compilador) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+
+<!-- Módulos de la app -->
+<script src="js/actividades.js"></script>
+<script src="js/logica.js"></script>
+<script src="js/datos.js"></script>
+<script src="js/router.js"></script>
+<script src="js/proyectos.js"></script>
+<script src="js/semana-control.js"></script>
+<script src="js/config-proyecto.js"></script>
+<script src="js/importar.js"></script>
+<script src="js/terminaciones.js"></script>
+
+<!-- Inicializador (siempre al último) -->
+<script src="js/interfaz.js"></script>
+
+<!-- Registro del Service Worker (habilita instalación como app) -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+</script>
+
+<script>
+  // Registrar eventos adicionales al cargar
+  document.addEventListener('DOMContentLoaded', () => {
+    proyectos_inicializarOrden();
+    configProyecto_registrarEventos();
+
+    // Segundo botón de nuevo proyecto (estado vacío)
+    document.getElementById('btn-nuevo-proyecto-2')?.addEventListener('click', () => {
+      router_ir('v-config');
+    });
+  });
+</script>
+
+</body>
+</html>
