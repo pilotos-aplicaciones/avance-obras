@@ -752,6 +752,23 @@ function _mat_tablaFase(fase) {
 // ── Sticky horizontal: congelar columnas de cálculo ─────────────────────────
 
 function _term_aplicarStickyH() {
+  // Abreviado en móvil: ocultar Código (idx 0) + columnas de cálculo (idx 2,3,4)
+  // para que la tabla entre en pantalla sin scroll horizontal.
+  const _abreMovil = _mat_abreviado && interfaz_esMovil();
+  document.querySelectorAll('#mat-contenido .tabla-mat:not(.tabla-resumen):not(.tabla-consolidado)').forEach(function(tabla) {
+    tabla.querySelectorAll('thead tr').forEach(function(tr) {
+      if (tr.classList.contains('fila-fase-titulo')) return;
+      [0, 2, 3, 4].forEach(function(idx) {
+        if (tr.children[idx]) tr.children[idx].style.display = _abreMovil ? 'none' : '';
+      });
+    });
+    tabla.querySelectorAll('tbody tr').forEach(function(tr) {
+      [0, 2, 3, 4].forEach(function(idx) {
+        if (tr.children[idx]) tr.children[idx].style.display = _abreMovil ? 'none' : '';
+      });
+    });
+  });
+
   // Forzar ancho mínimo de contenido en columnas sticky de texto antes de medir.
   // Con white-space:nowrap, width:1px hace que el navegador use exactamente el
   // ancho del texto, evitando que table-layout:auto las infle cuando hay pocos
@@ -874,7 +891,7 @@ function _term_aplicarStickyH() {
   if (allDeptoThs.length > 0) {
     // Primero resetear para obtener el ancho natural del contenido
     allDeptoThs.forEach(function(th) { th.style.minWidth = ''; th.style.maxWidth = ''; th.style.width = ''; });
-    var maxDeptoW = 48;
+    var maxDeptoW = (_mat_abreviado && interfaz_esMovil()) ? 32 : 48;
     allDeptoThs.forEach(function(th) { if (th.scrollWidth > maxDeptoW) maxDeptoW = th.scrollWidth; });
     allDeptoThs.forEach(function(th) {
       th.style.minWidth = maxDeptoW + 'px';
