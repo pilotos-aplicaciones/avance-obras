@@ -1005,7 +1005,11 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   min-width: 44px; min-height: 44px; font-size: .95rem;
 }
 
-/* Modo abreviado en móvil: columnas más angostas para que la tabla quepa en pantalla */
+/* Modo abreviado en móvil: tabla se encoge a su contenido mínimo */
+.modo-movil .tabla-abreviada {
+  min-width: auto;
+  width: auto;
+}
 .modo-movil .tabla-abreviada th,
 .modo-movil .tabla-abreviada td {
   padding: .2rem .3rem;
@@ -1013,8 +1017,7 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 }
 .modo-movil .tabla-abreviada .celda-mat {
   min-width: 36px;
-  min-height: 40px;
-  font-size: .8rem;
+  min-height: 38px;
 }
 .modo-movil .tabla-abreviada .col-depto {
   min-width: 36px;
