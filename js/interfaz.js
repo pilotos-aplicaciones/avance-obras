@@ -93,11 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   window.addEventListener('beforeunload', e => {
-    // Liberar el rol de editor al cerrar la app
-    if (typeof presencia_salirProyecto === 'function' && typeof router_getProyectoActivo === 'function') {
-      const id = router_getProyectoActivo();
-      if (id) presencia_salirProyecto(id);
-    }
     // Si hay avances pendientes de guardar, advertir al cerrar
     const pendientes = typeof datos_proyectosConPendiente === 'function'
       ? datos_proyectosConPendiente() : [];

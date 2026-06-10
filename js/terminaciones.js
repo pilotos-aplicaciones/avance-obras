@@ -113,54 +113,6 @@ function terminaciones_inicializar(idProyecto) {
     window._mat_resizeRegistrado = true;
   }
   _mat_render();
-
-  // Si ya estábamos en este proyecto (re-render), aplicar el modo conocido de inmediato
-  // para evitar parpadeos. Si es la primera entrada, esperar la respuesta de Firestore
-  // antes de mostrar el banner (así no aparece por un instante y desaparece).
-  const yaEnEsteProyecto = typeof presencia_getProyectoActual === 'function'
-    && presencia_getProyectoActual() === idProyecto;
-  if (yaEnEsteProyecto && typeof presencia_esModoEditor === 'function') {
-    _mat_aplicarModoPresencia(presencia_esModoEditor());
-  }
-  if (typeof presencia_entrarProyecto === 'function') {
-    presencia_entrarProyecto(idProyecto, _mat_aplicarModoPresencia)
-      .then(_mat_aplicarModoPresencia);
-  }
-}
-
-// Aplica o quita el modo visualizador en el panel de terminaciones.
-// El modo editor se aplica de inmediato.
-// El modo visualizador espera 800 ms antes de mostrarse, para evitar el
-// parpadeo que ocurre mientras Firestore aún está confirmando el rol inicial.
-// Si durante ese tiempo llega confirmación de editor, el timer se cancela.
-function _mat_aplicarModoPresencia(esEditor) {
-  const panel  = document.getElementById('panel-tab-term');
-  const banner = document.getElementById('presencia-banner');
-
-  if (esEditor) {
-    // Cancelar cualquier transición pendiente a visualizador
-    clearTimeout(window._pres_bannerTimer);
-    if (panel)  panel.classList.remove('modo-visualizador');
-    if (banner) banner.style.display = 'none';
-  } else {
-    // Esperar antes de confirmar visualizador — evita el parpadeo en la entrada
-    clearTimeout(window._pres_bannerTimer);
-    window._pres_bannerTimer = setTimeout(function() {
-      if (typeof presencia_esModoEditor === 'function' && presencia_esModoEditor()) return;
-      if (panel)  panel.classList.add('modo-visualizador');
-      if (banner) {
-        // Mostrar nombre del editor si lo conocemos
-        const nombreEditor = window._pres_nombreEditor || null;
-        const textoEl = document.getElementById('presencia-banner-texto');
-        if (textoEl) {
-          textoEl.textContent = nombreEditor
-            ? 'Modo visualización · ' + nombreEditor + ' está editando este proyecto'
-            : 'Modo visualización · Otro dispositivo está editando este proyecto';
-        }
-        banner.style.display = 'flex';
-      }
-    }, 800);
-  }
 }
 
 function _mat_render() {
@@ -722,8 +674,16 @@ function _term_aplicarStickyH() {
       var numDeptos = numTablas > 0 ? Math.round(allDeptoThs.length / numTablas) : allDeptoThs.length;
       if (numDeptos < 1) numDeptos = 1;
 
-      // Espacio disponible = ancho de pantalla − columnas fijas − margen
-      var available = window.innerWidth - stickyRight - 4;
+      // Espacio disponible = borde derecho del contenedor (sin padding) − columnas fijas
+      var panel = document.getElementById('panel-tab-term');
+      var rightBound = window.innerWidth; // fallback
+      if (panel) {
+        var cs = window.getComputedStyle(panel);
+        rightBound = panel.getBoundingClientRect().right
+          - parseFloat(cs.paddingRight || '0')
+          - parseFloat(cs.borderRightWidth || '0');
+      }
+      var available = rightBound - stickyRight;
       var deptoW = Math.max(26, Math.floor(available / numDeptos));
 
       allDeptoThs.forEach(function(th) {
@@ -812,7 +772,6 @@ function _mat_registrarEventosCeldas() {
     });
 
     td.addEventListener('dblclick', e => {
-      if (!presencia_esModoEditor()) return; // modo visualizador: sin edición
       e.stopPropagation();
       _mat_abrirInputInline(td);
     });
@@ -830,7 +789,6 @@ function _mat_registrarEventosCeldas() {
     });
 
     td.addEventListener('keydown', e => {
-      if (!presencia_esModoEditor()) return; // modo visualizador: sin edición
       if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); _sel.clear(); _sel.add(td); _mat_mostrarSelectorFlotante(_sel); }
     });
 
@@ -859,7 +817,6 @@ function _mat_registrarEventosCeldas() {
 
     td.addEventListener('touchend', () => {
       _mat_detenerAutoScroll();
-      if (!presencia_esModoEditor()) { _arrastrando = false; return; }
       // Siempre mostrar burbuja: celda única o selección múltiple
       _mat_mostrarSelectorFlotante(_sel);
       _arrastrando = false;
@@ -868,7 +825,7 @@ function _mat_registrarEventosCeldas() {
 
   document.addEventListener('mouseup', () => {
     _mat_detenerAutoScroll();
-    if (_arrastrando && _sel.size > 1 && presencia_esModoEditor()) _mat_mostrarSelectorFlotante(_sel);
+    if (_arrastrando && _sel.size > 1) _mat_mostrarSelectorFlotante(_sel);
     _arrastrando = false;
   });
 
