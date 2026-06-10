@@ -674,17 +674,16 @@ function _term_aplicarStickyH() {
       var numDeptos = numTablas > 0 ? Math.round(allDeptoThs.length / numTablas) : allDeptoThs.length;
       if (numDeptos < 1) numDeptos = 1;
 
-      // Espacio disponible = borde derecho del contenedor real de la tabla (#mat-contenido),
-      // descontando su padding derecho. Esto evita que los deptos excedan el área visible.
+      // Espacio disponible = ancho de pantalla menos los paddings de los contenedores.
+      // Se calcula desde window.innerWidth (no desde getBoundingClientRect del DOM,
+      // que puede estar desbordado en el momento de la medición).
+      var panel     = document.getElementById('panel-tab-term');
       var matContent = document.getElementById('mat-contenido');
-      var rightBound = window.innerWidth; // fallback
-      if (matContent) {
-        var cs = window.getComputedStyle(matContent);
-        rightBound = matContent.getBoundingClientRect().right
-          - parseFloat(cs.paddingRight || '0')
-          - parseFloat(cs.borderRightWidth || '0');
-      }
-      var available = rightBound - stickyRight;
+      var panelPadR  = panel      ? parseFloat(window.getComputedStyle(panel).paddingRight      || '0') : 0;
+      var matPadR    = matContent ? parseFloat(window.getComputedStyle(matContent).paddingRight  || '0') : 0;
+      // 8px de margen de seguridad para que el último depto no quede pegado al borde
+      var rightBound = window.innerWidth - panelPadR - matPadR - 8;
+      var available  = rightBound - stickyRight;
       var deptoW = Math.max(26, Math.floor(available / numDeptos));
 
       allDeptoThs.forEach(function(th) {
