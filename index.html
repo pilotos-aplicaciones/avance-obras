@@ -27,7 +27,8 @@
     <button class="btn-secundario btn-sm solo-escritorio" id="btn-importar">⬆ Importar</button>
     <button class="btn-primario solo-escritorio" id="btn-nuevo-proyecto">+ Nuevo Proyecto</button>
     <span class="sync-indicator" data-estado="ok"><span class="sync-dot"></span><span class="sync-label">Sincronizado</span></span>
-    <span class="app-version">v3.6</span>
+    <button class="navbar-usuario" id="navbar-usuario-inicio" title="Cambiar nombre de usuario">👤 <span class="navbar-usuario-nombre">—</span></button>
+    <span class="app-version">v3.7</span>
   </nav>
 
   <div class="inicio-header">
@@ -62,7 +63,8 @@
     <span class="navbar-spacer"></span>
     <button class="btn-secundario btn-sm" id="cf-btn-cancelar">Cancelar</button>
     <span class="sync-indicator" data-estado="ok"><span class="sync-dot"></span><span class="sync-label">Sincronizado</span></span>
-    <span class="app-version">v3.6</span>
+    <button class="navbar-usuario" id="navbar-usuario-config" title="Cambiar nombre de usuario">👤 <span class="navbar-usuario-nombre">—</span></button>
+    <span class="app-version">v3.7</span>
   </nav>
 
   <div class="config-layout">
@@ -94,7 +96,7 @@
 
 
 <!-- ══════════════════════════════════════════════════════════
-     VISTA PROYECTO — 4 tabs de contenido
+     VISTA PROYECTO — tabs de contenido
      ══════════════════════════════════════════════════════════ -->
 <div id="v-proyecto">
 
@@ -113,13 +115,15 @@
     <button class="btn-secundario btn-sm solo-escritorio" id="btn-config-proyecto">⚙ Configurar</button>
     <button class="btn-secundario btn-sm" id="btn-volver-inicio">← Inicio</button>
     <span class="sync-indicator" data-estado="ok"><span class="sync-dot"></span><span class="sync-label">Sincronizado</span></span>
-    <span class="app-version">v3.6</span>
+    <button class="navbar-usuario" id="navbar-usuario-proyecto" title="Cambiar nombre de usuario">👤 <span class="navbar-usuario-nombre">—</span></button>
+    <span class="app-version">v3.7</span>
   </nav>
 
   <!-- Banner modo visualizador: aparece cuando otro dispositivo ya es editor -->
   <div id="presencia-banner" class="presencia-banner" style="display:none">
     <span class="presencia-icono">👁</span>
-    <span>Modo visualización · Otro dispositivo está editando este proyecto</span>
+    <span id="presencia-banner-texto">Modo visualización · Otro dispositivo está editando este proyecto</span>
+    <button class="btn-tomar-control" id="btn-tomar-control">Tomar control</button>
   </div>
 
   <div id="barra-control"></div>
@@ -151,6 +155,24 @@
   </div>
 </div>
 
+<!-- Modal ingreso de nombre de usuario -->
+<div class="modal-overlay" id="modal-nombre-overlay" style="display:none">
+  <div class="modal-box">
+    <div class="modal-titulo">¿Cuál es tu nombre?</div>
+    <div class="modal-mensaje" style="margin-bottom:.75rem">
+      Tu nombre se guardará en este dispositivo para identificarte cuando trabajes en equipo.
+    </div>
+    <input type="text" id="modal-nombre-input" class="input-texto"
+           placeholder="Ej: María Paz, Rodrigo..."
+           maxlength="40" autocomplete="off"
+           style="width:100%;margin-bottom:.25rem">
+    <div class="modal-acciones" style="margin-top:.75rem">
+      <button class="btn-secundario" id="modal-nombre-cancelar">Ahora no</button>
+      <button class="btn-primario"   id="modal-nombre-confirmar">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast de notificaciones -->
 <div class="toast" id="toast"></div>
 
@@ -168,7 +190,6 @@
     var s = document.createElement('script');
     s.src = 'js/vendor/xlsx.full.min.js';
     s.onload = function() {
-      // El archivo local puede estar vacío y cargar sin error; verificar que XLSX quedó definido.
       if (typeof XLSX === 'undefined') {
         var fb = document.createElement('script');
         fb.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
@@ -211,12 +232,10 @@
 </script>
 
 <script>
-  // Registrar eventos adicionales al cargar
   document.addEventListener('DOMContentLoaded', () => {
     proyectos_inicializarOrden();
     configProyecto_registrarEventos();
 
-    // Segundo botón de nuevo proyecto (estado vacío)
     document.getElementById('btn-nuevo-proyecto-2')?.addEventListener('click', () => {
       router_ir('v-config');
     });

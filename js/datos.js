@@ -164,9 +164,26 @@ function datos_usageKB() {
 const _FS_COL    = 'avances_obras_proyectos'; // nombre de la colección en Firestore
 const _fs_timers = {};          // timers de debounce por proyecto
 
-// ID único de esta sesión/dispositivo. Permite al listener onSnapshot ignorar
-// los cambios que nosotros mismos subimos (evita refrescos innecesarios).
-const _DEVICE_ID = 'dev_' + Math.random().toString(36).slice(2, 9);
+// ID único del dispositivo. Se persiste en localStorage para que sea siempre
+// el mismo aunque el usuario cierre y reabra la app. Esto permite al sistema
+// de presencia reconocer que es el mismo dispositivo entre sesiones.
+const _DEVICE_ID = (function() {
+  const key = _PRE + 'device_id';
+  let id = localStorage.getItem(key);
+  if (!id) { id = 'dev_' + Math.random().toString(36).slice(2, 9); localStorage.setItem(key, id); }
+  return id;
+})();
+
+// ── Nombre de usuario ────────────────────────────────────────────────────────
+// Nombre que el usuario ingresó en su primer uso. Se guarda en el dispositivo.
+
+function datos_getNombreUsuario() {
+  return localStorage.getItem(_PRE + 'autor') || '';
+}
+
+function datos_setNombreUsuario(nombre) {
+  localStorage.setItem(_PRE + 'autor', (nombre || '').trim());
+}
 
 // ── Indicador de estado de sincronización ────────────────────────────────────
 // Actualiza todos los íconos .sync-indicator del navbar según el estado actual.
@@ -345,6 +362,8 @@ let _pres_proyectoActual = null;
 let _pres_hbTimer        = null;
 let _pres_listener       = null;
 let _pres_callback       = null; // función(esEditor) llamada cuando cambia el modo
+let _pres_pollerTimer    = null; // reloj que detecta heartbeats expirados en modo viewer
+let _pres_ultimoVisto    = null; // timestamp (ms) del último heartbeat conocido del editor
 
 // Entra al proyecto: reclama el rol de editor o queda en visualizador.
 // onCambioModo(esEditor) se llama cuando el rol cambia (ej: editor sale → visualizador pasa a editor).
@@ -382,6 +401,7 @@ async function presencia_entrarProyecto(idProyecto, onCambioModo) {
       // Proyecto libre o ya era nuestro → reclamar como editor
       await ref.set({
         dispositivoId: _DEVICE_ID,
+        nombreUsuario: datos_getNombreUsuario() || _DEVICE_ID,
         desde: new Date().toISOString(),
         visto: new Date().toISOString(),
       });
@@ -403,7 +423,10 @@ async function presencia_entrarProyecto(idProyecto, onCambioModo) {
 // Sale del proyecto: libera la presencia y detiene el heartbeat.
 function presencia_salirProyecto(idProyecto) {
   clearInterval(_pres_hbTimer);
-  _pres_hbTimer = null;
+  clearInterval(_pres_pollerTimer);
+  _pres_hbTimer     = null;
+  _pres_pollerTimer = null;
+  _pres_ultimoVisto = null;
 
   if (_pres_listener) { _pres_listener(); _pres_listener = null; }
 
@@ -433,33 +456,75 @@ function _pres_iniciarHeartbeat(idProyecto) {
   _pres_hbTimer = setInterval(function() {
     if (!_db || !_pres_modoEditor) return;
     _db.collection(_PRES_COL).doc(idProyecto)
-      .update({ visto: new Date().toISOString() })
+      .update({ visto: new Date().toISOString(), nombreUsuario: datos_getNombreUsuario() || _DEVICE_ID })
       .catch(function() {});
   }, _PRES_HB);
 }
 
 // Escucha cambios en la presencia del proyecto en tiempo real.
 // Si el editor sale, el visualizador intenta tomar el rol automáticamente.
+// También guarda el último 'visto' para que el poller pueda detectar expiración
+// sin depender de que Firebase mande una nueva notificación.
 function _pres_escuchar(idProyecto) {
   if (_pres_listener) { _pres_listener(); _pres_listener = null; }
   if (!_db) return;
 
   _pres_listener = _db.collection(_PRES_COL).doc(idProyecto).onSnapshot(function(doc) {
-    if (_pres_proyectoActual !== idProyecto) return; // ya nos fuimos de este proyecto
+    if (_pres_proyectoActual !== idProyecto) return;
 
-    const data = doc.exists ? doc.data() : null;
-    const ahora = Date.now();
+    const data    = doc.exists ? doc.data() : null;
+    const ahora   = Date.now();
     const reciente = data && data.visto && (ahora - new Date(data.visto).getTime()) < _PRES_TTL;
     const esNuestro = !data || data.dispositivoId === _DEVICE_ID;
 
+    // Guardar timestamp del heartbeat del editor y su nombre para el banner
+    if (data && data.visto) _pres_ultimoVisto = new Date(data.visto).getTime();
+    if (data && data.nombreUsuario) window._pres_nombreEditor = data.nombreUsuario;
+
     if (!_pres_modoEditor && (!reciente || esNuestro)) {
       // El editor se fue → intentar tomar el rol
-      _pres_proyectoActual = null; // forzar re-evaluación en presencia_entrarProyecto
+      clearInterval(_pres_pollerTimer);
+      _pres_pollerTimer = null;
+      _pres_proyectoActual = null;
       presencia_entrarProyecto(idProyecto, _pres_callback).then(function(esEditor) {
         if (_pres_callback) _pres_callback(esEditor);
       });
+    } else if (!_pres_modoEditor && reciente && !esNuestro) {
+      // Hay un editor activo externo → iniciar poller para detectar cuando expire
+      _pres_iniciarPoller(idProyecto);
     }
   }, function(err) {
     console.warn('[COA] Error en listener de presencia:', err.message);
   });
+}
+
+// Poller: en modo viewer, verifica cada 20 s si el heartbeat del editor ya expiró.
+// Esto cubre el caso donde el editor se va sin internet y Firebase nunca notifica.
+function _pres_iniciarPoller(idProyecto) {
+  clearInterval(_pres_pollerTimer);
+  _pres_pollerTimer = setInterval(function() {
+    if (_pres_modoEditor || _pres_proyectoActual !== idProyecto) {
+      clearInterval(_pres_pollerTimer);
+      _pres_pollerTimer = null;
+      return;
+    }
+    if (_pres_ultimoVisto && (Date.now() - _pres_ultimoVisto) > _PRES_TTL) {
+      // Heartbeat expirado → intentar tomar el rol
+      clearInterval(_pres_pollerTimer);
+      _pres_pollerTimer = null;
+      _pres_proyectoActual = null;
+      presencia_entrarProyecto(idProyecto, _pres_callback).then(function(esEditor) {
+        if (_pres_callback) _pres_callback(esEditor);
+      });
+    }
+  }, 20000);
+}
+
+// Toma el control del proyecto manualmente (acción del usuario desde el banner).
+// Solo llama a presencia_entrarProyecto forzando re-evaluación.
+function presencia_tomarControl(idProyecto) {
+  clearInterval(_pres_pollerTimer);
+  _pres_pollerTimer    = null;
+  _pres_proyectoActual = null;
+  return presencia_entrarProyecto(idProyecto, _pres_callback);
 }

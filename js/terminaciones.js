@@ -135,10 +135,19 @@ function _mat_aplicarModoPresencia(esEditor) {
     // Esperar antes de confirmar visualizador — evita el parpadeo en la entrada
     clearTimeout(window._pres_bannerTimer);
     window._pres_bannerTimer = setTimeout(function() {
-      // Solo activar si seguimos siendo visualizadores
       if (typeof presencia_esModoEditor === 'function' && presencia_esModoEditor()) return;
       if (panel)  panel.classList.add('modo-visualizador');
-      if (banner) banner.style.display = 'flex';
+      if (banner) {
+        // Mostrar nombre del editor si lo conocemos
+        const nombreEditor = window._pres_nombreEditor || null;
+        const textoEl = document.getElementById('presencia-banner-texto');
+        if (textoEl) {
+          textoEl.textContent = nombreEditor
+            ? 'Modo visualización · ' + nombreEditor + ' está editando este proyecto'
+            : 'Modo visualización · Otro dispositivo está editando este proyecto';
+        }
+        banner.style.display = 'flex';
+      }
     }, 800);
   }
 }

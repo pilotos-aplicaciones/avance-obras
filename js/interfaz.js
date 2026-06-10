@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   _interfaz_aplicarModoDispositivo();
   _interfaz_registrarNavegacionGlobal();
   _interfaz_registrarModal();
+  _interfaz_inicializarNombreUsuario();
   router_ir('v-inicio');
 
   // Iniciar listener en tiempo real con Firestore.
@@ -130,6 +131,93 @@ function _interfaz_verificarPendientes() {
       interfaz_mostrarToast('Avances descartados.', 'info');
     }
   );
+}
+
+// ── Nombre de usuario ────────────────────────────────────────────────────────
+
+function _interfaz_inicializarNombreUsuario() {
+  const nombre = datos_getNombreUsuario();
+
+  // Actualizar todos los botones de usuario en el navbar
+  _interfaz_actualizarNombreEnNavbar(nombre);
+
+  // Registrar click en cualquier botón .navbar-usuario para editar
+  document.querySelectorAll('.navbar-usuario').forEach(btn => {
+    btn.addEventListener('click', interfaz_editarNombreUsuario);
+  });
+
+  // Registrar modal de nombre
+  document.getElementById('modal-nombre-confirmar')?.addEventListener('click', () => {
+    const input = document.getElementById('modal-nombre-input');
+    const valor = (input?.value || '').trim();
+    if (!valor) return;
+    datos_setNombreUsuario(valor);
+    _interfaz_actualizarNombreEnNavbar(valor);
+    document.getElementById('modal-nombre-overlay').style.display = 'none';
+    interfaz_mostrarToast('Nombre guardado: ' + valor, 'exito');
+  });
+
+  document.getElementById('modal-nombre-cancelar')?.addEventListener('click', () => {
+    document.getElementById('modal-nombre-overlay').style.display = 'none';
+  });
+
+  // Permitir confirmar con Enter
+  document.getElementById('modal-nombre-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('modal-nombre-confirmar')?.click();
+  });
+
+  // Si no tiene nombre configurado, pedir al abrir la app
+  if (!nombre) {
+    setTimeout(() => interfaz_editarNombreUsuario(true), 600);
+  }
+
+  // Botón "Tomar control" en el banner de presencia
+  document.getElementById('btn-tomar-control')?.addEventListener('click', () => {
+    const idProyecto = typeof router_getProyectoActivo === 'function' ? router_getProyectoActivo() : null;
+    if (!idProyecto) return;
+    interfaz_mostrarModal(
+      '¿Tomar control de la edición?',
+      'El otro dispositivo puede estar sin conexión pero con cambios sin guardar. ' +
+      'Si ambos guardan al reconectarse, podrían perderse registros del otro dispositivo.',
+      () => {
+        if (typeof presencia_tomarControl === 'function') {
+          presencia_tomarControl(idProyecto).then(esEditor => {
+            if (esEditor) {
+              interfaz_mostrarToast('Ahora eres el editor de este proyecto.', 'exito');
+            } else {
+              interfaz_mostrarToast('No se pudo tomar el control. El otro dispositivo sigue activo.', 'error');
+            }
+          });
+        }
+      }
+    );
+  });
+}
+
+function _interfaz_actualizarNombreEnNavbar(nombre) {
+  const display = nombre || 'Sin nombre';
+  document.querySelectorAll('.navbar-usuario-nombre').forEach(el => {
+    el.textContent = display;
+  });
+}
+
+// Abre el modal para editar el nombre. Si esPrompt=true, no muestra botón "Ahora no".
+function interfaz_editarNombreUsuario(esPrompt) {
+  const overlay = document.getElementById('modal-nombre-overlay');
+  const input   = document.getElementById('modal-nombre-input');
+  const btnCancelar = document.getElementById('modal-nombre-cancelar');
+  if (!overlay || !input) return;
+
+  input.value = datos_getNombreUsuario();
+  if (esPrompt === true) {
+    if (btnCancelar) btnCancelar.style.display = 'none';
+    document.querySelector('#modal-nombre-overlay .modal-titulo').textContent = '¿Cuál es tu nombre?';
+  } else {
+    if (btnCancelar) btnCancelar.style.display = '';
+    document.querySelector('#modal-nombre-overlay .modal-titulo').textContent = 'Cambiar nombre';
+  }
+  overlay.style.display = 'flex';
+  setTimeout(() => input.focus(), 100);
 }
 
 // ── Modal ────────────────────────────────────────────────────────────────────
