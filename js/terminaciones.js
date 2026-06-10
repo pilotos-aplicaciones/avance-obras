@@ -674,12 +674,13 @@ function _term_aplicarStickyH() {
       var numDeptos = numTablas > 0 ? Math.round(allDeptoThs.length / numTablas) : allDeptoThs.length;
       if (numDeptos < 1) numDeptos = 1;
 
-      // Espacio disponible = borde derecho del contenedor (sin padding) − columnas fijas
-      var panel = document.getElementById('panel-tab-term');
+      // Espacio disponible = borde derecho del contenedor real de la tabla (#mat-contenido),
+      // descontando su padding derecho. Esto evita que los deptos excedan el área visible.
+      var matContent = document.getElementById('mat-contenido');
       var rightBound = window.innerWidth; // fallback
-      if (panel) {
-        var cs = window.getComputedStyle(panel);
-        rightBound = panel.getBoundingClientRect().right
+      if (matContent) {
+        var cs = window.getComputedStyle(matContent);
+        rightBound = matContent.getBoundingClientRect().right
           - parseFloat(cs.paddingRight || '0')
           - parseFloat(cs.borderRightWidth || '0');
       }

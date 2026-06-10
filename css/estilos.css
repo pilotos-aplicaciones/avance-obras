@@ -1036,11 +1036,7 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   min-width: 0;
 }
 
-/* Modo abreviado en móvil: tabla se encoge a su contenido mínimo */
-.modo-movil .tabla-abreviada {
-  min-width: auto;
-  width: auto;
-}
+/* Modo abreviado en móvil: misma base que .tabla-mat (min-width: 100%) */
 .modo-movil .tabla-abreviada th,
 .modo-movil .tabla-abreviada td {
   padding: .2rem .3rem;
