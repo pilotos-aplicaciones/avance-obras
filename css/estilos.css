@@ -147,29 +147,23 @@ html, body {
 .presencia-banner {
   background: #1e3a8a;
   color: #bfdbfe;
-  padding: .45rem 1rem;
+  padding: .5rem 1rem;
   font-size: .8rem;
   font-weight: 500;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: .5rem;
   flex-shrink: 0;
   letter-spacing: .01em;
 }
-.presencia-icono { font-size: 1rem; flex-shrink: 0; }
-#presencia-banner-texto { flex: 1; }
-.btn-tomar-control {
-  margin-left: auto; flex-shrink: 0;
-  background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
-  color: #fff; border-radius: 20px;
-  padding: .2rem .7rem; font-size: .75rem; font-weight: 600;
-  cursor: pointer; transition: background .15s;
-}
-.btn-tomar-control:hover { background: rgba(255,255,255,.28); }
+.presencia-icono { font-size: 1rem; }
 
 /* Panel en modo visualizador: navegable, edición bloqueada en JS */
 #panel-tab-term.modo-visualizador {
-  opacity: .92;
+  opacity: .88;
+  pointer-events: none;
+  user-select: none;
 }
 
 /* Tabs de proyecto */
@@ -1037,6 +1031,10 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 .modo-movil .celda-mat {
   min-width: 44px; min-height: 44px; font-size: .95rem;
 }
+/* En columnas de depto, el JS controla el ancho dinámicamente — el CSS no impone mínimo */
+.modo-movil .tabla-mat:not(.tabla-resumen):not(.tabla-consolidado) .celda-mat {
+  min-width: 0;
+}
 
 /* Modo abreviado en móvil: tabla se encoge a su contenido mínimo */
 .modo-movil .tabla-abreviada {
@@ -1049,11 +1047,11 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   font-size: .75rem;
 }
 .modo-movil .tabla-abreviada .celda-mat {
-  min-width: 36px;
+  min-width: 0;
   min-height: 38px;
 }
 .modo-movil .tabla-abreviada .col-depto {
-  min-width: 36px;
+  min-width: 0;
 }
 
 /* Botón flotante guardar: visible en móvil/tablet cuando hay cambios pendientes */

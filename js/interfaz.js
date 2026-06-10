@@ -171,27 +171,6 @@ function _interfaz_inicializarNombreUsuario() {
     setTimeout(() => interfaz_editarNombreUsuario(true), 600);
   }
 
-  // Botón "Tomar control" en el banner de presencia
-  document.getElementById('btn-tomar-control')?.addEventListener('click', () => {
-    const idProyecto = typeof router_getProyectoActivo === 'function' ? router_getProyectoActivo() : null;
-    if (!idProyecto) return;
-    interfaz_mostrarModal(
-      '¿Tomar control de la edición?',
-      'El otro dispositivo puede estar sin conexión pero con cambios sin guardar. ' +
-      'Si ambos guardan al reconectarse, podrían perderse registros del otro dispositivo.',
-      () => {
-        if (typeof presencia_tomarControl === 'function') {
-          presencia_tomarControl(idProyecto).then(esEditor => {
-            if (esEditor) {
-              interfaz_mostrarToast('Ahora eres el editor de este proyecto.', 'exito');
-            } else {
-              interfaz_mostrarToast('No se pudo tomar el control. El otro dispositivo sigue activo.', 'error');
-            }
-          });
-        }
-      }
-    );
-  });
 }
 
 function _interfaz_actualizarNombreEnNavbar(nombre) {

@@ -37,10 +37,11 @@ function datos_cargarProyecto(id) {
   return raw ? JSON.parse(raw) : null;
 }
 
-function datos_eliminarProyecto(id) {
+// Borra solo del almacenamiento local (sin tocar Firestore).
+// Usado cuando la eliminación ya ocurrió en Firestore (p.ej. desde otro dispositivo).
+function _datos_eliminarLocal(id) {
   localStorage.removeItem(_PRE + 'proyecto_' + id);
   localStorage.removeItem(_PRE + 'matrices_' + id);
-  // Limpiar claves heredadas de versiones anteriores (por si existen en el dispositivo)
   localStorage.removeItem(_PRE + 'baseline_' + id);
   localStorage.removeItem(_PRE + 'hist_og_' + id);
   localStorage.removeItem(_PRE + 'hist_term_' + id);
@@ -48,8 +49,12 @@ function datos_eliminarProyecto(id) {
   localStorage.removeItem(_PRE + 'snapshots_' + id);
   localStorage.removeItem(_PRE + 'ciclo_' + id);
   localStorage.removeItem(_PRE + 'semana_ctrl_' + id);
-  const idx = datos_listarProyectos().filter(p => p.id !== id);
+  const idx = datos_listarProyectos().filter(function(p) { return p.id !== id; });
   _datos_guardarIndice(idx);
+}
+
+function datos_eliminarProyecto(id) {
+  _datos_eliminarLocal(id);
   // Eliminar también de Firestore
   if (_db) {
     _db.collection(_FS_COL).doc(id).delete()
@@ -270,7 +275,21 @@ function datos_iniciarListenerFirestore() {
     const idsActualizados = new Set(); // proyectos que cambiaron desde otro dispositivo
 
     snap.docChanges().forEach(function(change) {
-      if (change.type === 'removed') return;
+      if (change.type === 'removed') {
+        // El proyecto fue eliminado desde otro dispositivo: borrarlo localmente también.
+        const id = change.doc.id;
+        _datos_eliminarLocal(id);
+        // Si el usuario está viendo ese proyecto ahora, volver al inicio.
+        if (typeof router_getProyectoActivo === 'function' && router_getProyectoActivo() === id) {
+          if (typeof interfaz_mostrarToast === 'function') {
+            interfaz_mostrarToast('Este proyecto fue eliminado desde otro dispositivo.', 'info', 4000);
+          }
+          if (typeof router_ir === 'function') router_ir('v-inicio');
+        } else if (typeof proyectos_renderizarGrilla === 'function') {
+          proyectos_renderizarGrilla();
+        }
+        return;
+      }
 
       const d = change.doc.data();
       if (!d.config || !d.config.id) return;
@@ -520,11 +539,3 @@ function _pres_iniciarPoller(idProyecto) {
   }, 20000);
 }
 
-// Toma el control del proyecto manualmente (acción del usuario desde el banner).
-// Solo llama a presencia_entrarProyecto forzando re-evaluación.
-function presencia_tomarControl(idProyecto) {
-  clearInterval(_pres_pollerTimer);
-  _pres_pollerTimer    = null;
-  _pres_proyectoActual = null;
-  return presencia_entrarProyecto(idProyecto, _pres_callback);
-}

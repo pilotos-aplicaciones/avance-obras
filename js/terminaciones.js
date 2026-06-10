@@ -101,6 +101,17 @@ function terminaciones_inicializar(idProyecto) {
     document.addEventListener('mousemove', _mat_mousemoveScrollHandler);
     _dragDocRegistrado = true;
   }
+  // Recalcular anchos de depto al rotar o redimensionar la pantalla
+  if (!window._mat_resizeRegistrado) {
+    var _mat_resizeTimer = null;
+    window.addEventListener('resize', function() {
+      clearTimeout(_mat_resizeTimer);
+      _mat_resizeTimer = setTimeout(function() {
+        if (interfaz_esMovil()) _term_aplicarStickyH();
+      }, 150);
+    });
+    window._mat_resizeRegistrado = true;
+  }
   _mat_render();
 
   // Si ya estábamos en este proyecto (re-render), aplicar el modo conocido de inmediato
@@ -680,23 +691,56 @@ function _term_aplicarStickyH() {
     });
   });
 
-  // Normalizar anchos de columnas de departamento para que sean iguales entre sí.
-  // Esto evita que al abreviar actividades la primera columna de deptos quede más
-  // ancha que el resto (el espacio liberado por la columna Actividad se redistribuye
-  // desigualmente cuando no hay un ancho fijo en las celdas de depto).
+  // Normalizar anchos de columnas de departamento.
+  // En móvil: distribuir el espacio disponible para que todos los deptos entren
+  // en pantalla sin scroll horizontal.
+  // En escritorio: usar el ancho natural más ancho de todas las tablas.
   var allDeptoThs = document.querySelectorAll(
     '#mat-contenido .tabla-mat:not(.tabla-resumen):not(.tabla-consolidado) .col-depto'
   );
   if (allDeptoThs.length > 0) {
-    // Primero resetear para obtener el ancho natural del contenido
     allDeptoThs.forEach(function(th) { th.style.minWidth = ''; th.style.maxWidth = ''; th.style.width = ''; });
-    var maxDeptoW = (_mat_abreviado && interfaz_esMovil()) ? 32 : 48;
-    allDeptoThs.forEach(function(th) { if (th.scrollWidth > maxDeptoW) maxDeptoW = th.scrollWidth; });
-    allDeptoThs.forEach(function(th) {
-      th.style.minWidth = maxDeptoW + 'px';
-      th.style.maxWidth = maxDeptoW + 'px';
-      th.style.width    = maxDeptoW + 'px';
-    });
+
+    if (interfaz_esMovil()) {
+      // Medir hasta dónde llega la última columna sticky (coord. viewport)
+      var stickyRight = 0;
+      var primeraTabla = document.querySelector(
+        '#mat-contenido .tabla-mat:not(.tabla-resumen):not(.tabla-consolidado)'
+      );
+      if (primeraTabla) {
+        primeraTabla.querySelectorAll('thead tr:last-child th').forEach(function(th) {
+          if (th.classList.contains('sticky-left') || th.classList.contains('term-sticky-col')) {
+            var r = th.getBoundingClientRect().right;
+            if (r > stickyRight) stickyRight = r;
+          }
+        });
+      }
+      // Número de deptos por tabla (todas las tablas tienen los mismos deptos)
+      var numTablas = document.querySelectorAll(
+        '#mat-contenido .tabla-mat:not(.tabla-resumen):not(.tabla-consolidado)'
+      ).length;
+      var numDeptos = numTablas > 0 ? Math.round(allDeptoThs.length / numTablas) : allDeptoThs.length;
+      if (numDeptos < 1) numDeptos = 1;
+
+      // Espacio disponible = ancho de pantalla − columnas fijas − margen
+      var available = window.innerWidth - stickyRight - 4;
+      var deptoW = Math.max(26, Math.floor(available / numDeptos));
+
+      allDeptoThs.forEach(function(th) {
+        th.style.minWidth = deptoW + 'px';
+        th.style.maxWidth = deptoW + 'px';
+        th.style.width    = deptoW + 'px';
+      });
+    } else {
+      // Escritorio: respetar el ancho natural del contenido
+      var maxDeptoW = 48;
+      allDeptoThs.forEach(function(th) { if (th.scrollWidth > maxDeptoW) maxDeptoW = th.scrollWidth; });
+      allDeptoThs.forEach(function(th) {
+        th.style.minWidth = maxDeptoW + 'px';
+        th.style.maxWidth = maxDeptoW + 'px';
+        th.style.width    = maxDeptoW + 'px';
+      });
+    }
   }
 }
 
