@@ -18,6 +18,10 @@ let _ancla               = null;
 let _arrastrando         = false;
 let _pasteDocRegistrado  = false;
 let _dragDocRegistrado   = false;
+let _mat_mouseupDocHandler      = null;  // handler guardado para poder removerlo al re-registrar
+let _mat_clickCerrarAcciones    = null;  // ídem para cerrar dropdown Acciones
+let _mat_clickCerrarMenu        = null;  // ídem para cerrar menú ···
+const _mat_pendienteConsultado  = new Set(); // proyectos cuyo pendiente ya se consultó esta sesión
 let _scrollRAF           = null;
 let _ptrClientX          = 0;
 let _ptrClientY          = 0;
@@ -113,6 +117,23 @@ function terminaciones_inicializar(idProyecto) {
     window._mat_resizeRegistrado = true;
   }
   _mat_render();
+
+  // Verificar pendiente de sesión anterior (solo una vez por proyecto por sesión)
+  if (datos_hayPendiente(idProyecto) && !_mat_pendienteConsultado.has(idProyecto)) {
+    _mat_pendienteConsultado.add(idProyecto);
+    interfaz_mostrarModal(
+      'Avances sin guardar',
+      'Tenías avances sin guardar de una sesión anterior. ¿Deseas recuperarlos?',
+      () => {
+        window._coa_guardadoPendiente = true;
+        interfaz_mostrarToast('Avances recuperados. Recuerda guardarlos cuando termines.', 'info', 4000);
+      },
+      () => {
+        datos_limpiarPendiente(idProyecto);
+        interfaz_mostrarToast('Avances descartados.', 'info');
+      }
+    );
+  }
 }
 
 function _mat_render() {
@@ -758,7 +779,6 @@ function _mat_registrarEventosCeldas() {
     td.addEventListener('click', e => {
       // Ignorar el click sintético que el browser dispara tras touchend en móvil
       if (_ultimoFueToque) { _ultimoFueToque = false; return; }
-      if (!presencia_esModoEditor()) return; // modo visualizador: sin edición
       if (e.shiftKey && _ancla) {
         _mat_seleccionarRango(_ancla, td, _sel);
         _mat_mostrarSelectorFlotante(_sel);
@@ -823,11 +843,13 @@ function _mat_registrarEventosCeldas() {
     });
   });
 
-  document.addEventListener('mouseup', () => {
+  if (_mat_mouseupDocHandler) document.removeEventListener('mouseup', _mat_mouseupDocHandler);
+  _mat_mouseupDocHandler = function() {
     _mat_detenerAutoScroll();
     if (_arrastrando && _sel.size > 1) _mat_mostrarSelectorFlotante(_sel);
     _arrastrando = false;
-  });
+  };
+  document.addEventListener('mouseup', _mat_mouseupDocHandler);
 
   // Botón abreviar nombres en encabezado Actividad
   document.querySelectorAll('.btn-abrev-hdr').forEach(btn => {
@@ -860,27 +882,28 @@ function _mat_ciclarValor(td) {
 }
 
 function _mat_setCelda(td, valor) {
+  _mat_setCeldaSilenciosa(td, valor);
+  datos_guardarMatrices(_mat_id, _mat_datos);
+  window._coa_guardadoPendiente = true;
+  const [, num] = td.dataset.key.split('_');
+  _mat_recalcularFilaActividad(td.dataset.fase, parseInt(num));
+  _mat_recalcularFilaTermino(td.dataset.fase, parseInt(td.dataset.fase.split('_')[1]));
+  _mat_recalcularResumen();
+}
+
+// Versión silenciosa: solo actualiza _mat_datos y el DOM, sin guardar ni recalcular.
+// Usar en operaciones por lote; llamar guardar+recalcular una vez al terminar.
+function _mat_setCeldaSilenciosa(td, valor) {
   const faseKey = td.dataset.fase;
   const key     = td.dataset.key;
   if (!faseKey || !key) return;
-
   if (!_mat_datos[faseKey]) _mat_datos[faseKey] = {};
   _mat_datos[faseKey][key] = valor;
-  datos_guardarMatrices(_mat_id, _mat_datos);
-  window._coa_guardadoPendiente = true;
-
-  // Actualizar TODAS las celdas con la misma key en el DOM
   document.querySelectorAll(`.celda-mat[data-fase="${faseKey}"][data-key="${key}"]`).forEach(c => {
     c.dataset.val = valor;
     c.className   = 'celda-mat ' + _mat_claseValor(valor);
     c.textContent = valor > 0 ? valor + '%' : '';
   });
-
-  // Recalcular fila de actividad y fila de término
-  const [depto, num] = key.split('_');
-  _mat_recalcularFilaActividad(faseKey, parseInt(num));
-  _mat_recalcularFilaTermino(faseKey, parseInt(faseKey.split('_')[1]));
-  _mat_recalcularResumen();
 }
 
 function _mat_recalcularFilaActividad(faseKey, num) {
@@ -987,7 +1010,26 @@ function _mat_mostrarSelectorFlotante(sel) {
       const celdas100 = [...sel].filter(td => parseInt(td.dataset.val) === 100);
 
       const aplicar = () => {
-        sel.forEach(td => _mat_setCelda(td, nuevoValor));
+        // Actualizar datos + DOM en silencio para cada celda
+        sel.forEach(td => _mat_setCeldaSilenciosa(td, nuevoValor));
+        // Guardar a localStorage UNA sola vez
+        datos_guardarMatrices(_mat_id, _mat_datos);
+        window._coa_guardadoPendiente = true;
+        // Recalcular filas afectadas (agrupadas para evitar duplicados)
+        const fasesAfectadas = new Set();
+        const actsPorFase = new Map();
+        sel.forEach(td => {
+          const fk = td.dataset.fase;
+          const num = parseInt(td.dataset.key.split('_')[1]);
+          fasesAfectadas.add(fk);
+          if (!actsPorFase.has(fk)) actsPorFase.set(fk, new Set());
+          actsPorFase.get(fk).add(num);
+        });
+        actsPorFase.forEach((nums, fk) => {
+          nums.forEach(num => _mat_recalcularFilaActividad(fk, num));
+          _mat_recalcularFilaTermino(fk, parseInt(fk.split('_')[1]));
+        });
+        _mat_recalcularResumen(); // una sola vez al final
         sel.clear();
         flotante.style.display = 'none';
       };
@@ -1257,11 +1299,13 @@ function _mat_registrarEventos() {
       const icono = btnAcciones.querySelector('.sidebar-texto');
       if (icono) icono.textContent = visible ? 'Acciones ▾' : 'Acciones ▲';
     });
-    document.addEventListener('click', () => {
+    if (_mat_clickCerrarAcciones) document.removeEventListener('click', _mat_clickCerrarAcciones);
+    _mat_clickCerrarAcciones = () => {
       if (dropAcciones) { dropAcciones.style.display = 'none'; }
       const icono = btnAcciones?.querySelector('.sidebar-texto');
       if (icono) icono.textContent = 'Acciones ▾';
-    });
+    };
+    document.addEventListener('click', _mat_clickCerrarAcciones);
   }
 
   // Menú "···"
@@ -1291,9 +1335,11 @@ function _mat_registrarEventos() {
       menuDropdown.style.left = left + 'px';
     }
   });
-  document.addEventListener('click', () => {
+  if (_mat_clickCerrarMenu) document.removeEventListener('click', _mat_clickCerrarMenu);
+  _mat_clickCerrarMenu = () => {
     if (menuDropdown) menuDropdown.style.display = 'none';
-  });
+  };
+  document.addEventListener('click', _mat_clickCerrarMenu);
 
   document.getElementById('mat-btn-resetear')?.addEventListener('click', () => {
     const menuDropdownLocal = document.getElementById('mat-menu-dropdown');

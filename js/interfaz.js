@@ -71,9 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // la app directamente. El listener popstate lo intercepta y muestra la
   // alerta si hay cambios pendientes.
   history.pushState({ coa: 'app' }, '');
-  var _ignorarProximoPopstate = false;
+  var _ignorarPopstates = 0;
   window.addEventListener('popstate', function() {
-    if (_ignorarProximoPopstate) { _ignorarProximoPopstate = false; return; }
+    if (_ignorarPopstates > 0) { _ignorarPopstates--; return; }
     var hayPendiente = window._coa_guardadoPendiente
       || (typeof datos_proyectosConPendiente === 'function' && datos_proyectosConPendiente().length > 0);
     // Siempre re-empujamos el estado para mantener el buffer
@@ -83,10 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'Avances sin guardar',
         '¿Salir de la aplicación? Tienes avances sin guardar en este dispositivo.',
         function() {
-          // Usuario confirma salir: sacar el estado extra y dejar cerrar
-          _ignorarProximoPopstate = true;
-          history.back();
-          history.back(); // salir del estado extra y del inicial
+          // Dos history.back() generan dos popstate — ignorar ambos
+          _ignorarPopstates = 2;
+          history.back(); // sale del estado re-pusheado
+          history.back(); // sale del buffer inicial
         }
       );
     }
@@ -104,29 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Verificar si hay avances pendientes de sesiones anteriores
-  setTimeout(_interfaz_verificarPendientes, 500); // pequeño delay para que cargue Firebase primero
 });
-
-function _interfaz_verificarPendientes() {
-  if (typeof datos_proyectosConPendiente !== 'function') return;
-  const pendientes = datos_proyectosConPendiente();
-  if (pendientes.length === 0) return;
-
-  interfaz_mostrarModal(
-    'Avances sin guardar',
-    'Tenías avances sin guardar de una sesión anterior. ¿Deseas recuperarlos?',
-    () => {
-      // Sí: los datos ya están en localStorage, solo mostrar toast
-      interfaz_mostrarToast('Avances recuperados. Recuerda guardarlos cuando termines.', 'info', 4000);
-    },
-    () => {
-      // No: limpiar todos los pendientes
-      pendientes.forEach(id => datos_limpiarPendiente(id));
-      interfaz_mostrarToast('Avances descartados.', 'info');
-    }
-  );
-}
 
 // ── Nombre de usuario ────────────────────────────────────────────────────────
 
