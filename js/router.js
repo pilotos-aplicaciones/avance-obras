@@ -13,7 +13,7 @@ function router_ir(vista, opciones = {}) {
     if (_proyectoActivo && typeof datos_hayPendiente === 'function' && datos_hayPendiente(_proyectoActivo)) {
       interfaz_mostrarModal(
         'Avances sin guardar',
-        '¿Salir sin guardar los avances? Los cambios quedarán guardados en este dispositivo y podrás recuperarlos al volver.',
+        '¿Salir sin guardar los avances?',
         () => {
           // Confirma salir: liberar presencia y navegar
           if (typeof presencia_salirProyecto === 'function') presencia_salirProyecto(_proyectoActivo);
