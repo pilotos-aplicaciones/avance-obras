@@ -143,29 +143,6 @@ html, body {
 }
 
 
-/* ── Modo visualizador (presencia) ────────────────────────── */
-.presencia-banner {
-  background: #1e3a8a;
-  color: #bfdbfe;
-  padding: .5rem 1rem;
-  font-size: .8rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: .5rem;
-  flex-shrink: 0;
-  letter-spacing: .01em;
-}
-.presencia-icono { font-size: 1rem; }
-
-/* Panel en modo visualizador: navegable, edición bloqueada en JS */
-#panel-tab-term.modo-visualizador {
-  opacity: .88;
-  pointer-events: none;
-  user-select: none;
-}
-
 /* Tabs de proyecto */
 .proyecto-tabs {
   display: flex;

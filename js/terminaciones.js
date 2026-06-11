@@ -738,7 +738,7 @@ function _mat_mousemoveScrollHandler(e) {
 
 function _mat_autoScrollLoop() {
   if (!_arrastrando) { _scrollRAF = null; return; }
-  const panel = document.getElementById('panel-tab-term');
+  const panel = document.getElementById('mat-area-contenido') || document.getElementById('panel-tab-term');
   if (!panel) { _scrollRAF = null; return; }
 
   const rect = panel.getBoundingClientRect();

@@ -15,15 +15,10 @@ function router_ir(vista, opciones = {}) {
         'Avances sin guardar',
         '¿Salir sin guardar los avances?',
         () => {
-          // Confirma salir: liberar presencia y navegar
-          if (typeof presencia_salirProyecto === 'function') presencia_salirProyecto(_proyectoActivo);
           _router_navegar(vista, opciones);
         }
       );
       return;
-    }
-    if (typeof presencia_salirProyecto === 'function' && _proyectoActivo) {
-      presencia_salirProyecto(_proyectoActivo);
     }
   }
 
