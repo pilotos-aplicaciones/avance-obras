@@ -15,7 +15,14 @@ function router_ir(vista, opciones = {}) {
         'Avances sin guardar',
         '¿Salir sin guardar los avances?',
         () => {
+          // Descartar cambios locales: restaurar último estado guardado oficialmente
+          if (typeof datos_descartarPendiente === 'function') datos_descartarPendiente(_proyectoActivo);
+          window._coa_guardadoPendiente = false;
           _router_navegar(vista, opciones);
+        },
+        () => {
+          // Usuario canceló: re-empujar entrada para que el botón atrás siga funcionando
+          history.pushState({ coa: 'v-proyecto' }, '');
         }
       );
       return;
@@ -35,6 +42,14 @@ function _router_navegar(vista, opciones = {}) {
   if (!destino) return;
   destino.style.display = 'flex';
   _vistaActual = vista;
+
+  // Gestión de historial para botón atrás de Android:
+  // Solo se agrega entrada al entrar a una sub-vista (proyecto, config).
+  // Al volver al inicio, la entrada ya fue consumida por el back del usuario
+  // (si usó el back físico) o queda en el stack (si usó "← Inicio").
+  if (vista === 'v-proyecto' || vista === 'v-config') {
+    history.pushState({ coa: vista }, '');
+  }
 
   if (vista === 'v-proyecto') {
     const id = opciones.idProyecto || _proyectoActivo;

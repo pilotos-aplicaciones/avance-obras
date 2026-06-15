@@ -44,10 +44,15 @@ document.addEventListener('DOMContentLoaded', () => {
       '¿Confirmas el guardado de los avances? Los datos se sincronizarán con todos los dispositivos.',
       () => {
         datos_subirAhora(id);
+        if (typeof _mat_exportarJSONSilencioso === 'function') _mat_exportarJSONSilencioso(); // respaldo automático silencioso
         window._coa_guardadoPendiente = false;
         const btnToolbar = document.getElementById('mat-btn-guardar-avances');
         if (btnToolbar) btnToolbar.classList.remove('mat-btn-pendiente');
-        interfaz_mostrarToast('Avances guardados correctamente', 'exito');
+        if (datos_estaOnline()) {
+          interfaz_mostrarToast('Avances guardados correctamente', 'exito');
+        } else {
+          interfaz_mostrarToast('Avances guardados en este dispositivo. Se sincronizarán cuando vuelva la conexión.', 'aviso', 5000);
+        }
       }
     );
   });
@@ -67,28 +72,40 @@ document.addEventListener('DOMContentLoaded', () => {
   window._coa_guardadoPendiente = false; // inicializar
 
   // ── Interceptar botón "atrás" de Android en PWA ──────────────────────────
-  // Empujamos un estado al historial para que el primer "atrás" no cierre
-  // la app directamente. El listener popstate lo intercepta y muestra la
-  // alerta si hay cambios pendientes.
-  history.pushState({ coa: 'app' }, '');
+  // NO hacemos pushState al inicio. En vez de eso, router.js agrega una
+  // entrada al historial cuando el usuario entra a una sub-vista (proyecto,
+  // config). Así, el primer "atrás" desde el inicio cierra la app de forma
+  // natural, sin necesidad de código extra.
   var _ignorarPopstates = 0;
   window.addEventListener('popstate', function() {
     if (_ignorarPopstates > 0) { _ignorarPopstates--; return; }
-    var hayPendiente = window._coa_guardadoPendiente
-      || (typeof datos_proyectosConPendiente === 'function' && datos_proyectosConPendiente().length > 0);
-    // Siempre re-empujamos el estado para mantener el buffer
-    history.pushState({ coa: 'app' }, '');
-    if (hayPendiente) {
-      interfaz_mostrarModal(
-        'Avances sin guardar',
-        '¿Salir de la aplicación? Tienes avances sin guardar en este dispositivo.',
-        function() {
-          // Dos history.back() generan dos popstate — ignorar ambos
-          _ignorarPopstates = 2;
-          history.back(); // sale del estado re-pusheado
-          history.back(); // sale del buffer inicial
-        }
-      );
+
+    var vistaActual = typeof router_getVistaActual === 'function' ? router_getVistaActual() : null;
+
+    if (vistaActual === 'v-proyecto' || vistaActual === 'v-config') {
+      // ── Sub-vista → volver al inicio ─────────────────────────────────
+      // router_ir maneja el chequeo de avances pendientes (y su modal).
+      // Si el usuario cancela, router_ir re-empuja la entrada del historial.
+      router_ir('v-inicio');
+
+    } else {
+      // ── En el inicio → verificar pendientes antes de cerrar ───────────
+      var hayPendienteGlobal = window._coa_guardadoPendiente ||
+        (typeof datos_proyectosConPendiente === 'function' && datos_proyectosConPendiente().length > 0);
+      if (hayPendienteGlobal) {
+        // Re-empujar para quedarnos mientras mostramos el aviso
+        history.pushState({ coa: 'v-inicio' }, '');
+        interfaz_mostrarModal(
+          'Avances sin guardar',
+          '¿Salir de la aplicación? Tienes avances sin guardar en este dispositivo.',
+          function() {
+            window._coa_guardadoPendiente = false;
+            _ignorarPopstates = 1;
+            history.back(); // deshace el re-push → Android cierra
+          }
+        );
+      }
+      // Sin pendientes: no hacemos nada → Android cierra la app naturalmente
     }
   });
 
@@ -148,8 +165,10 @@ function _interfaz_inicializarNombreUsuario() {
 
 function _interfaz_actualizarNombreEnNavbar(nombre) {
   const display = nombre || 'Sin nombre';
-  document.querySelectorAll('.navbar-usuario-nombre').forEach(el => {
-    el.textContent = display;
+  const inicial = display.trim().charAt(0).toUpperCase() || '?';
+  // Avatar: muestra solo la inicial
+  document.querySelectorAll('.navbar-usuario').forEach(btn => {
+    btn.textContent = inicial;
   });
 }
 
@@ -203,6 +222,7 @@ function interfaz_cerrarModal() {
 
 function _interfaz_registrarModal() {
   document.getElementById('modal-cancelar')?.addEventListener('click', interfaz_cerrarModal);
+  document.getElementById('modal-cerrar-btn')?.addEventListener('click', interfaz_cerrarModal);
   document.getElementById('modal-overlay')?.addEventListener('click', e => {
     if (e.target.id === 'modal-overlay') interfaz_cerrarModal();
   });

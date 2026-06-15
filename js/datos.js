@@ -42,6 +42,8 @@ function datos_cargarProyecto(id) {
 function _datos_eliminarLocal(id) {
   localStorage.removeItem(_PRE + 'proyecto_' + id);
   localStorage.removeItem(_PRE + 'matrices_' + id);
+  localStorage.removeItem(_PRE + 'matrices_ok_' + id);
+  localStorage.removeItem(_PRE + 'pendiente_ts_' + id);
   localStorage.removeItem(_PRE + 'baseline_' + id);
   localStorage.removeItem(_PRE + 'hist_og_' + id);
   localStorage.removeItem(_PRE + 'hist_term_' + id);
@@ -92,9 +94,18 @@ function datos_proyectosConPendiente() {
 
 // Sube el proyecto a Firebase de forma explícita (llamado solo al confirmar guardado)
 function datos_subirAhora(idProyecto) {
+  // Guardar snapshot del estado oficial antes de subir
+  datos_guardarMatricesOk(idProyecto);
+  datos_limpiarPendiente(idProyecto);
+  localStorage.removeItem(_PRE + 'pendiente_ts_' + idProyecto);
+  // Si no hay internet, marcar offline y no intentar Firebase.
+  // El listener 'online' subirá automáticamente cuando vuelva la red.
+  if (!datos_estaOnline()) {
+    _fs_setEstado('offline');
+    return;
+  }
   _fs_setEstado('sincronizando');
   _fs_subirProyecto(idProyecto);
-  datos_limpiarPendiente(idProyecto);
 }
 
 // ── Matrices de terminaciones (estado actual) ────────────────────────────────
@@ -103,12 +114,44 @@ function datos_guardarMatrices(idProyecto, matrices) {
   // Solo guarda en local — NO sube a Firebase automáticamente.
   // El usuario debe presionar "Guardar avances" para sincronizar.
   localStorage.setItem(_PRE + 'matrices_' + idProyecto, JSON.stringify(matrices));
+  // Guardar timestamp de la última vez que hubo cambios sin guardar
+  if (!localStorage.getItem(_PRE + 'pendiente_ts_' + idProyecto)) {
+    localStorage.setItem(_PRE + 'pendiente_ts_' + idProyecto, new Date().toISOString());
+  }
   datos_marcarPendiente(idProyecto);
 }
 
 function datos_cargarMatrices(idProyecto) {
   const raw = localStorage.getItem(_PRE + 'matrices_' + idProyecto);
   return raw ? JSON.parse(raw) : {};
+}
+
+// ── Matrices oficiales (último guardado confirmado) ───────────────────────────
+// Se actualiza cada vez que el usuario presiona "Guardar avances".
+// Se usa para restaurar el estado cuando el usuario descarta cambios sin guardar.
+
+function datos_guardarMatricesOk(idProyecto) {
+  const matrices = datos_cargarMatrices(idProyecto);
+  localStorage.setItem(_PRE + 'matrices_ok_' + idProyecto, JSON.stringify(matrices));
+}
+
+function datos_cargarMatricesOk(idProyecto) {
+  const raw = localStorage.getItem(_PRE + 'matrices_ok_' + idProyecto);
+  return raw ? JSON.parse(raw) : {};
+}
+
+// Devuelve la fecha/hora en que se hicieron cambios sin guardar (ISO 8601), o null si no hay.
+function datos_getFechaPendiente(idProyecto) {
+  return localStorage.getItem(_PRE + 'pendiente_ts_' + idProyecto) || null;
+}
+
+// Descarta los cambios sin guardar: restaura las matrices al último estado oficial
+// y limpia la marca de pendiente. Se llama al confirmar "salir sin guardar".
+function datos_descartarPendiente(idProyecto) {
+  const ok = datos_cargarMatricesOk(idProyecto);
+  localStorage.setItem(_PRE + 'matrices_' + idProyecto, JSON.stringify(ok));
+  datos_limpiarPendiente(idProyecto);
+  localStorage.removeItem(_PRE + 'pendiente_ts_' + idProyecto);
 }
 
 // ── Control semanal ──────────────────────────────────────────────────────────
@@ -144,6 +187,7 @@ function datos_importarRespaldo(jsonTexto) {
   const id = obj.proyecto.id;
   datos_guardarProyecto(obj.proyecto);
   datos_guardarMatrices(id, obj.matrices || {});
+  datos_limpiarPendiente(id); // el respaldo cargado no tiene avances pendientes
   return id;
 }
 
@@ -198,7 +242,7 @@ function _fs_setEstado(estado) {
   const labels = {
     ok:            'Sincronizado',
     sincronizando: 'Sincronizando…',
-    error:         'Error de sync',
+    error:         'Error',
     offline:       'Sin conexión',
   };
   const texto = labels[estado] || '';
@@ -237,11 +281,13 @@ function _fs_subirProyecto(id) {
 
   _db.collection(_FS_COL).doc(id).set(doc)
     .then(function() {
-      _fs_setEstado('ok');
+      // Firebase resuelve su caché local aunque no haya internet,
+      // así que verificamos datos_estaOnline() antes de mostrar "Sincronizado".
+      _fs_setEstado(datos_estaOnline() ? 'ok' : 'offline');
     })
     .catch(function(err) {
       console.warn('[COA] Error al subir proyecto a Firestore:', err.message);
-      _fs_setEstado('error');
+      _fs_setEstado(datos_estaOnline() ? 'error' : 'offline');
     });
 }
 
@@ -330,7 +376,7 @@ function datos_iniciarListenerFirestore() {
       });
     }
 
-    _fs_setEstado('ok');
+    _fs_setEstado(datos_estaOnline() ? 'ok' : 'offline');
 
     // Solo notificar si hubo cambios externos y alguno afecta la vista actual
     if (idsActualizados.size > 0) {
@@ -338,7 +384,7 @@ function datos_iniciarListenerFirestore() {
     }
 
   }, function(err) {
-    _fs_setEstado('error');
+    _fs_setEstado(datos_estaOnline() ? 'error' : 'offline');
     console.warn('[COA] Error en listener Firestore:', err.message);
   });
 }
@@ -361,3 +407,28 @@ function _fs_notificarCambioExterno(idsActualizados) {
   }
 }
 
+// ── Detección de red en tiempo real ─────────────────────────────────────────
+// Usamos nuestra propia variable en vez de navigator.onLine directamente,
+// porque navigator.onLine no es confiable en todos los dispositivos (ej. iOS).
+
+let _coa_estaOnline = navigator.onLine;
+
+function datos_estaOnline() {
+  return _coa_estaOnline;
+}
+
+window.addEventListener('offline', function() {
+  _coa_estaOnline = false;
+  _fs_setEstado('offline');
+});
+
+window.addEventListener('online', function() {
+  _coa_estaOnline = true;
+  // Al recuperar la red, re-intentar subir todos los proyectos locales
+  // por si hubo cambios mientras no había conexión.
+  if (!_db) return;
+  _fs_setEstado('sincronizando');
+  datos_listarProyectos().forEach(function(p) {
+    _fs_subirProyecto(p.id);
+  });
+});

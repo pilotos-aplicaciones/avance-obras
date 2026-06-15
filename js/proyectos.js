@@ -46,15 +46,21 @@ function proyectos_renderizarGrilla() {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const id = btn.dataset.id;
-      const json = datos_exportarRespaldo(id);
       const config = datos_cargarProyecto(id);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url  = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `respaldo_${(config?.nombre || id).replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      interfaz_mostrarModal(
+        'Exportar configuración',
+        `Esto exporta la configuración del proyecto "${config?.nombre || id}" (pisos, departamentos, actividades, fases).\n\nNo incluye los avances de terminaciones — esos se exportan desde dentro del proyecto con "Exportar Excel".`,
+        () => {
+          const json = datos_exportarRespaldo(id);
+          const blob = new Blob([json], { type: 'application/json' });
+          const url  = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `respaldo_${(config?.nombre || id).replace(/\s+/g, '_')}_${new Date().toISOString().slice(0,10)}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      );
     });
   });
 }
@@ -65,7 +71,7 @@ function proyectos_actualizarHeader(id) {
   const el = document.getElementById('proyecto-nombre-header');
   if (el) el.textContent = config.nombre;
   const sub = document.getElementById('proyecto-sub-header');
-  if (sub) sub.textContent = `${config.zona || ''}${config.zona && config.comuna ? ' · ' : ''}${config.comuna || ''}`;
+  if (sub) sub.textContent = 'Avance Terminaciones';
 }
 
 function proyectos_inicializarOrden() {
@@ -80,25 +86,31 @@ function proyectos_inicializarOrden() {
 
   // Importar respaldo
   document.getElementById('btn-importar')?.addEventListener('click', () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        try {
-          datos_importarRespaldo(ev.target.result);
-          proyectos_renderizarGrilla();
-          interfaz_mostrarToast('Respaldo importado correctamente.', 'exito');
-        } catch (err) {
-          interfaz_mostrarToast('Error al importar: ' + err.message, 'error');
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
+    interfaz_mostrarModal(
+      'Importar configuración',
+      'Esto importa la configuración de un proyecto (pisos, departamentos, actividades, fases) desde un archivo JSON de respaldo.\n\nNo carga avances de terminaciones — esos se importan desde dentro del proyecto con "Importar Excel".',
+      () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = e => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = ev => {
+            try {
+              datos_importarRespaldo(ev.target.result);
+              proyectos_renderizarGrilla();
+              interfaz_mostrarToast('Respaldo importado correctamente.', 'exito');
+            } catch (err) {
+              interfaz_mostrarToast('Error al importar: ' + err.message, 'error');
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      }
+    );
   });
 }
 

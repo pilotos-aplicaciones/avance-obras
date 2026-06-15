@@ -161,6 +161,16 @@ function actividades_getAbrev(numero) {
   return ABREV_ACTIVIDADES[numero] || actividades_getNombre(numero);
 }
 
+// Devuelve el código de visualización de una actividad.
+// Catálogo: número tal cual (ej. 1010). Custom: código guardado en actividadesCustom (ej. "C1").
+function actividades_getCodigoDisplay(config, numero) {
+  if (config && config.actividadesCustom) {
+    const custom = config.actividadesCustom.find(function(c) { return c.numero === numero; });
+    if (custom && custom.codigo) return custom.codigo;
+  }
+  return String(numero);
+}
+
 function actividades_porFase(fase) {
   return CATALOGO_ACTIVIDADES.filter(a => a.fase === fase);
 }
@@ -213,7 +223,14 @@ function actividades_sincronizarOrden(ordenActual, nuevaSeleccion) {
   nuevaSeleccion.forEach(num => {
     if (!mantenidas.find(o => o.numero === num)) {
       const a = CATALOGO_ACTIVIDADES.find(x => x.numero === num);
-      if (!a) return;
+      if (!a) {
+        // Actividad custom: recuperar fase desde el orden anterior
+        const orig = ordenActual.find(o => o.numero === num);
+        if (!orig) return;
+        const enFase = mantenidas.filter(o => o.faseEfectiva === orig.faseEfectiva);
+        mantenidas.push({ numero: num, faseEfectiva: orig.faseEfectiva, posicion: enFase.length });
+        return;
+      }
       const enFase = mantenidas.filter(o => o.faseEfectiva === a.fase);
       mantenidas.push({ numero: num, faseEfectiva: a.fase, posicion: enFase.length });
     }

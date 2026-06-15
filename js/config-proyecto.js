@@ -17,6 +17,7 @@ function configProyecto_iniciarNuevo() {
     term_schedule: [],
     responsables: [],
     nombresActividades: {},
+    actividadesCustom: [],
   };
   _cf_modoEdicion = false;
   _cf_paso = 1;
@@ -32,6 +33,7 @@ function configProyecto_iniciarEdicion(id) {
   if (!_cf.responsables) _cf.responsables = [];
   if (!('cantDeptosTipo' in _cf)) _cf.cantDeptosTipo = 0;
   if (!_cf.nombresActividades) _cf.nombresActividades = {};
+  if (!_cf.actividadesCustom) _cf.actividadesCustom = [];
   _cf_modoEdicion = true;
   _cf_paso = 1;
   _cf_renderizar();
@@ -185,15 +187,22 @@ function _cf_paso3() {
     // Actividades en orden efectivo para esta fase (puede incluir reasignadas de otras)
     const enOrden = logica_ordenEfectivo(_cf).filter(o => o.faseEfectiva === fase);
 
+    const numerosCustom = new Set((_cf.actividadesCustom || []).map(function(c) { return c.numero; }));
+
     const items = enOrden.map((o, idx) => {
-      const checked = _cf.actividades.includes(o.numero) ? 'checked' : '';
-      const nombre  = actividades_getNombreProyecto(_cf, o.numero);
-      // Escapar comillas para inyectar el nombre como atributo HTML seguro.
+      const checked    = _cf.actividades.includes(o.numero) ? 'checked' : '';
+      const nombre     = actividades_getNombreProyecto(_cf, o.numero);
       const nombreAttr = nombre.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      const esCustom   = numerosCustom.has(o.numero);
+      const codigoDisp = actividades_getCodigoDisplay(_cf, o.numero);
+      const codigoAttr = codigoDisp.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
       return `
-      <div class="act-item" data-num="${o.numero}" data-fase="${o.faseEfectiva}" data-pos="${o.posicion}">
+      <div class="act-item${esCustom ? ' act-item-custom' : ''}" data-num="${o.numero}" data-fase="${o.faseEfectiva}" data-pos="${o.posicion}">
         <input type="checkbox" class="chk-act" data-num="${o.numero}" ${checked}>
-        <span class="act-codigo">${o.numero}</span>
+        ${esCustom
+          ? `<input type="text" class="act-codigo act-codigo-input" data-num="${o.numero}" value="${codigoAttr}" maxlength="10" title="Editar código">`
+          : `<span class="act-codigo">${codigoDisp}</span>`
+        }
         <input type="text" class="act-nombre-input" data-num="${o.numero}" value="${nombreAttr}" title="Clic para editar">
         <div class="act-controles">
           <button class="btn-mover" data-dir="up" data-num="${o.numero}" ${idx === 0 ? 'disabled' : ''}>▲</button>
@@ -201,6 +210,7 @@ function _cf_paso3() {
           <select class="sel-fase" data-num="${o.numero}">
             ${[1,2,3,4,5,6].map(f => `<option value="${f}" ${f === fase ? 'selected' : ''}>${f}</option>`).join('')}
           </select>
+          ${esCustom ? `<button class="btn-eliminar-custom" data-num="${o.numero}" title="Eliminar actividad">✕</button>` : ''}
         </div>
         <span class="act-drag-handle" draggable="true" title="Arrastrar para reordenar">⋮⋮</span>
       </div>`;
@@ -224,6 +234,15 @@ function _cf_paso3() {
         <span class="cab-actividad">Actividad</span>
       </div>
       <div class="acts-lista" id="acts-fase-${fase}" data-fase="${fase}">${items.join('')}</div>
+      <div class="act-agregar-wrap">
+        <button class="btn-agregar-custom btn-sm" data-fase="${fase}">+ Actividad</button>
+        <div class="act-agregar-form" style="display:none" data-fase="${fase}">
+          <input type="text" class="act-agregar-codigo" placeholder="Cód." maxlength="10" title="Código de la actividad (ej. C1)">
+          <input type="text" class="act-agregar-input" placeholder="Nombre de la actividad" maxlength="80">
+          <button class="btn-primario btn-sm act-agregar-confirmar" data-fase="${fase}">Agregar</button>
+          <button class="btn-secundario btn-sm act-agregar-cancelar">Cancelar</button>
+        </div>
+      </div>
     </div>`;
   });
 
@@ -361,9 +380,13 @@ function _cf_registrarEventosPaso() {
     document.querySelectorAll('.btn-todas').forEach(btn => {
       btn.addEventListener('click', () => {
         const fase = parseInt(btn.dataset.fase);
+        // Incluir actividades del catálogo Y actividades custom de esta fase
+        const todasEnFase = logica_actividadesDeFase(_cf, fase);
         actividades_porFase(fase).forEach(a => {
-          if (!_cf.actividades.includes(a.numero)) _cf.actividades.push(a.numero);
-          document.querySelector(`.chk-act[data-num="${a.numero}"]`)?.setAttribute('checked', 'checked');
+          if (!todasEnFase.includes(a.numero)) todasEnFase.push(a.numero);
+        });
+        todasEnFase.forEach(num => {
+          if (!_cf.actividades.includes(num)) _cf.actividades.push(num);
         });
         _cf.ordenActividades = actividades_sincronizarOrden(_cf.ordenActividades, _cf.actividades);
         _cf_renderizar();
@@ -373,10 +396,97 @@ function _cf_registrarEventosPaso() {
     document.querySelectorAll('.btn-ninguna').forEach(btn => {
       btn.addEventListener('click', () => {
         const fase = parseInt(btn.dataset.fase);
-        const numsFase = actividades_porFase(fase).map(a => a.numero);
-        _cf.actividades = _cf.actividades.filter(n => !numsFase.includes(n));
+        // Excluir actividades del catálogo Y actividades custom de esta fase
+        const todasEnFase = new Set(logica_actividadesDeFase(_cf, fase));
+        actividades_porFase(fase).forEach(a => todasEnFase.add(a.numero));
+        _cf.actividades = _cf.actividades.filter(n => !todasEnFase.has(n));
         _cf.ordenActividades = actividades_sincronizarOrden(_cf.ordenActividades, _cf.actividades);
         _cf_renderizar();
+      });
+    });
+
+    // ── Eliminar actividad custom ────────────────────────────────────────────
+    document.querySelectorAll('.btn-eliminar-custom').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const num = parseInt(btn.dataset.num);
+        const nombre = actividades_getNombreProyecto(_cf, num);
+        interfaz_mostrarModal(
+          'Eliminar actividad',
+          '¿Eliminar la actividad "' + nombre + '"? Se perderán los avances registrados para esta actividad.',
+          () => {
+            _cf_eliminarActividadCustom(num);
+            _cf_renderizar();
+          }
+        );
+      });
+    });
+
+    // ── Formulario "+ Actividad" por fase ────────────────────────────────────
+    document.querySelectorAll('.btn-agregar-custom').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wrap = btn.closest('.act-agregar-wrap');
+        if (!wrap) return;
+        btn.style.display = 'none';
+        const form = wrap.querySelector('.act-agregar-form');
+        if (form) {
+          form.style.display = 'flex';
+          // Pre-llenar código sugerido y limpiar nombre
+          const inpCod = form.querySelector('.act-agregar-codigo');
+          const inpNom = form.querySelector('.act-agregar-input');
+          const faseSug = parseInt(btn.dataset.fase);
+          if (inpCod) inpCod.value = _cf_siguienteCodigoCustom(faseSug);
+          if (inpNom) { inpNom.value = ''; setTimeout(() => inpNom.focus(), 50); }
+        }
+      });
+    });
+
+    document.querySelectorAll('.act-agregar-cancelar').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wrap = btn.closest('.act-agregar-wrap');
+        if (!wrap) return;
+        const form = wrap.querySelector('.act-agregar-form');
+        const btnAgregar = wrap.querySelector('.btn-agregar-custom');
+        if (form) form.style.display = 'none';
+        if (btnAgregar) btnAgregar.style.display = '';
+      });
+    });
+
+    document.querySelectorAll('.act-agregar-confirmar').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const wrap = btn.closest('.act-agregar-wrap');
+        if (!wrap) return;
+        const inpCod = wrap.querySelector('.act-agregar-codigo');
+        const inpNom = wrap.querySelector('.act-agregar-input');
+        const codigo = (inpCod ? inpCod.value : '').trim() || _cf_siguienteCodigoCustom(fase);
+        const nombre = (inpNom ? inpNom.value : '').trim();
+        if (!nombre) { interfaz_mostrarToast('Ingresa un nombre para la actividad.', 'error'); return; }
+        const fase = parseInt(btn.dataset.fase);
+        _cf_agregarActividadCustom(fase, codigo, nombre);
+        _cf_renderizar();
+      });
+    });
+
+    // Enter en el input de nombre confirma; Escape cancela
+    document.querySelectorAll('.act-agregar-input, .act-agregar-codigo').forEach(inp => {
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          inp.closest('.act-agregar-form')?.querySelector('.act-agregar-confirmar')?.click();
+        }
+        if (e.key === 'Escape') {
+          inp.closest('.act-agregar-form')?.querySelector('.act-agregar-cancelar')?.click();
+        }
+      });
+    });
+
+    // Guardar cambios en el código de actividades custom
+    document.querySelectorAll('.act-codigo-input').forEach(inp => {
+      inp.addEventListener('change', e => {
+        const num    = parseInt(e.target.dataset.num);
+        const valor  = e.target.value.trim();
+        if (!valor) { e.target.value = actividades_getCodigoDisplay(_cf, num); return; }
+        const custom = (_cf.actividadesCustom || []).find(function(c) { return c.numero === num; });
+        if (custom) custom.codigo = valor;
       });
     });
   }
@@ -493,6 +603,52 @@ function _cf_moverActividad(numero, faseDestino, numAntesDe) {
   });
 
   _cf_renderizar();
+}
+
+// ── Actividades custom ────────────────────────────────────────────────────────
+
+function _cf_siguienteNumeroCustom() {
+  const existentes = (_cf.actividadesCustom || []).map(function(a) { return a.numero; });
+  if (existentes.length === 0) return 9001;
+  return Math.max.apply(null, existentes) + 1;
+}
+
+function _cf_siguienteCodigoCustom(fase) {
+  var maxN = 0;
+  (_cf.ordenActividades || [])
+    .filter(function(o) { return o.faseEfectiva === fase; })
+    .forEach(function(o) {
+      var custom = (_cf.actividadesCustom || []).find(function(c) { return c.numero === o.numero; });
+      var codigo = custom ? custom.codigo : String(o.numero);
+      var n = parseInt(codigo);
+      if (!isNaN(n)) maxN = Math.max(maxN, n);
+    });
+  return String(maxN === 0 ? fase * 1000 + 10 : maxN + 10);
+}
+
+function _cf_agregarActividadCustom(fase, codigo, nombre) {
+  const num = _cf_siguienteNumeroCustom();
+  if (!_cf.actividadesCustom) _cf.actividadesCustom = [];
+  if (!_cf.nombresActividades) _cf.nombresActividades = {};
+  _cf.actividadesCustom.push({ numero: num, codigo: codigo || _cf_siguienteCodigoCustom(fase) });
+  _cf.nombresActividades[num] = nombre;
+  _cf.actividades.push(num);
+  const enFase = _cf.ordenActividades.filter(function(o) { return o.faseEfectiva === fase; });
+  _cf.ordenActividades.push({ numero: num, faseEfectiva: fase, posicion: enFase.length });
+}
+
+function _cf_eliminarActividadCustom(numero) {
+  _cf.actividadesCustom = (_cf.actividadesCustom || []).filter(function(a) { return a.numero !== numero; });
+  delete _cf.nombresActividades[numero];
+  _cf.actividades = _cf.actividades.filter(function(n) { return n !== numero; });
+  _cf.ordenActividades = _cf.ordenActividades.filter(function(o) { return o.numero !== numero; });
+  // Reindexar posiciones
+  [1, 2, 3, 4, 5, 6].forEach(function(fase) {
+    _cf.ordenActividades
+      .filter(function(o) { return o.faseEfectiva === fase; })
+      .sort(function(a, b) { return a.posicion - b.posicion; })
+      .forEach(function(o, i) { o.posicion = i; });
+  });
 }
 
 // ── Botones de navegación del wizard ─────────────────────────────────────────

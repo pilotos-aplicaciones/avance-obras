@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Control de Avances — RVC</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#D13039">
+  <meta name="theme-color" content="#CC2929">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="COA">
@@ -20,15 +20,18 @@
 <div id="v-inicio">
 
   <nav class="navbar">
-    <img src="icons/logo_navbar_app.png" class="navbar-logo-img" alt="COA">
-    <div class="navbar-sep"></div>
-    <span class="navbar-titulo">Control de Avances</span>
+    <div class="nav-logo">
+      <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
+      <div class="nav-app-info">
+        <span class="nav-app-name">Control de Avances</span>
+        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.44</span></span>
+      </div>
+    </div>
     <span class="navbar-spacer"></span>
-    <button class="btn-secundario btn-sm solo-escritorio" id="btn-importar">⬆ Importar</button>
-    <button class="btn-primario solo-escritorio" id="btn-nuevo-proyecto">+ Nuevo Proyecto</button>
+    <button class="nbtn nbtn-secondary solo-escritorio" id="btn-importar">⬆ Importar</button>
+    <button class="nbtn nbtn-primary solo-escritorio" id="btn-nuevo-proyecto">+ Nuevo Proyecto</button>
     <span class="sync-indicator" data-estado="ok"><span class="sync-dot"></span><span class="sync-label">Sincronizado</span></span>
-    <button class="navbar-usuario" id="navbar-usuario-inicio" title="Cambiar nombre de usuario">👤 <span class="navbar-usuario-nombre">—</span></button>
-    <span class="app-version">v4.8</span>
+    <button class="navbar-usuario" id="navbar-usuario-inicio" title="Cambiar nombre de usuario">—</button>
   </nav>
 
   <div class="inicio-header">
@@ -45,7 +48,7 @@
     <div class="estado-vacio" id="estado-vacio">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       <p>No hay proyectos aún.<br>Crea uno para comenzar.</p>
-      <button class="btn-primario solo-escritorio" id="btn-nuevo-proyecto-2">+ Nuevo Proyecto</button>
+      <button class="nbtn nbtn-primary solo-escritorio" id="btn-nuevo-proyecto-2">+ Nuevo Proyecto</button>
     </div>
   </div>
 </div>
@@ -57,14 +60,17 @@
 <div id="v-config">
 
   <nav class="navbar">
-    <img src="icons/logo_navbar_app.png" class="navbar-logo-img" alt="COA">
-    <div class="navbar-sep"></div>
-    <span class="navbar-titulo" id="cf-titulo-nav">Nuevo Proyecto</span>
+    <div class="nav-logo">
+      <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
+      <div class="nav-app-info">
+        <span class="nav-app-name" id="cf-titulo-nav">Nuevo Proyecto</span>
+        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.44</span></span>
+      </div>
+    </div>
     <span class="navbar-spacer"></span>
-    <button class="btn-secundario btn-sm" id="cf-btn-cancelar">Cancelar</button>
+    <button class="nbtn nbtn-secondary" id="cf-btn-cancelar">Cancelar</button>
     <span class="sync-indicator" data-estado="ok"><span class="sync-dot"></span><span class="sync-label">Sincronizado</span></span>
-    <button class="navbar-usuario" id="navbar-usuario-config" title="Cambiar nombre de usuario">👤 <span class="navbar-usuario-nombre">—</span></button>
-    <span class="app-version">v4.8</span>
+    <button class="navbar-usuario" id="navbar-usuario-config" title="Cambiar nombre de usuario">—</button>
   </nav>
 
   <div class="config-layout">
@@ -101,22 +107,33 @@
 <div id="v-proyecto">
 
   <nav class="navbar">
-    <img src="icons/logo_navbar_app.png" class="navbar-logo-img" alt="COA">
-    <div class="navbar-sep"></div>
-    <div>
-      <div class="navbar-titulo" id="proyecto-nombre-header">—</div>
-      <div class="navbar-sub"    id="proyecto-sub-header"></div>
+    <div class="nav-logo">
+      <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
+      <div class="nav-app-info">
+        <span class="nav-app-name" id="proyecto-nombre-header">—</span>
+        <span class="nav-app-sub" id="proyecto-sub-header"></span>
+      </div>
     </div>
-    <div class="navbar-sep"></div>
     <div class="proyecto-tabs">
       <button class="tab-btn" data-tab="tab-term">📋 Avances Terminaciones</button>
     </div>
     <span class="navbar-spacer"></span>
-    <button class="btn-secundario btn-sm solo-escritorio" id="btn-config-proyecto">⚙ Configurar</button>
-    <button class="btn-secundario btn-sm" id="btn-volver-inicio">← Inicio</button>
+    <button class="nbtn nbtn-secondary" id="btn-volver-inicio">← Inicio</button>
     <span class="sync-indicator" data-estado="ok"><span class="sync-dot"></span><span class="sync-label">Sincronizado</span></span>
-    <button class="navbar-usuario" id="navbar-usuario-proyecto" title="Cambiar nombre de usuario">👤 <span class="navbar-usuario-nombre">—</span></button>
-    <span class="app-version">v4.8</span>
+    <div class="nav-menu-wrapper solo-escritorio">
+      <button class="nbtn nbtn-menu" id="btn-nav-menu">☰</button>
+      <div class="nav-dropdown" id="nav-dropdown">
+        <div class="nav-dropdown-label">Proyecto</div>
+        <button class="nav-dropdown-item" id="btn-config-proyecto">⚙ Configurar</button>
+        <div class="nav-dropdown-sep"></div>
+        <div class="nav-dropdown-label">Acciones</div>
+        <button class="nav-dropdown-item" id="nav-btn-importar-excel">📥 Importar Excel</button>
+        <button class="nav-dropdown-item" id="nav-btn-excel">📊 Exportar Excel</button>
+        <button class="nav-dropdown-item" id="nav-btn-cargar">📂 Cargar respaldo JSON</button>
+        <button class="nav-dropdown-item peligro" id="nav-btn-resetear">↺ Resetear avances</button>
+      </div>
+    </div>
+    <button class="navbar-usuario" id="navbar-usuario-proyecto" title="Cambiar nombre de usuario">—</button>
   </nav>
 
   <div id="barra-control"></div>
@@ -139,9 +156,12 @@
 <!-- Modal de confirmación -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal-box">
-    <div class="modal-titulo"  id="modal-titulo">Confirmar</div>
+    <div class="modal-header">
+      <div class="modal-titulo" id="modal-titulo">Confirmar</div>
+      <button class="modal-cerrar" id="modal-cerrar-btn">✕</button>
+    </div>
     <div class="modal-mensaje" id="modal-mensaje"></div>
-    <div class="modal-acciones">
+    <div class="modal-footer">
       <button class="btn-secundario" id="modal-cancelar">Cancelar</button>
       <button class="btn-primario"   id="modal-confirmar">Confirmar</button>
     </div>
@@ -151,7 +171,9 @@
 <!-- Modal ingreso de nombre de usuario -->
 <div class="modal-overlay" id="modal-nombre-overlay" style="display:none">
   <div class="modal-box">
-    <div class="modal-titulo">¿Cuál es tu nombre?</div>
+    <div class="modal-header">
+      <div class="modal-titulo">¿Cuál es tu nombre?</div>
+    </div>
     <div class="modal-mensaje" style="margin-bottom:.75rem">
       Tu nombre se guardará en este dispositivo para identificarte cuando trabajes en equipo.
     </div>
@@ -159,16 +181,20 @@
            placeholder="Ej: María Paz, Rodrigo..."
            maxlength="40" autocomplete="off"
            style="width:100%;margin-bottom:.25rem">
-    <div class="modal-acciones" style="margin-top:.75rem">
+    <div class="modal-footer" style="margin-top:.75rem">
       <button class="btn-secundario" id="modal-nombre-cancelar">Ahora no</button>
       <button class="btn-primario"   id="modal-nombre-confirmar">Guardar</button>
     </div>
   </div>
 </div>
 
+<!-- Inputs de archivo globales (usados por terminaciones.js) -->
+<input type="file" id="mat-input-cargar"          accept=".json" style="display:none">
+<input type="file" id="mat-input-excel-import"    accept=".xlsx" style="display:none">
+<input type="file" id="mat-input-planilla-export" accept=".xlsx" style="display:none">
+
 <!-- Toast de notificaciones -->
 <div class="toast" id="toast"></div>
-
 
 <!-- Botón guardar flotante (aparece cuando hay cambios sin exportar) -->
 <button id="btn-guardar-flotante" title="Guardar respaldo JSON">💾</button>
@@ -202,6 +228,9 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="js/firebase-config.js"></script>
 
+<!-- Utilidad ZIP (lectura/escritura in-place de .xlsx sin librerías externas) -->
+<script src="js/zip-utils.js"></script>
+
 <!-- Módulos de la app -->
 <script src="js/actividades.js"></script>
 <script src="js/logica.js"></script>
@@ -231,6 +260,42 @@
 
     document.getElementById('btn-nuevo-proyecto-2')?.addEventListener('click', () => {
       router_ir('v-config');
+    });
+
+    // ── Dropdown ☰ navbar ────────────────────────────────────
+    const btnMenu     = document.getElementById('btn-nav-menu');
+    const navDropdown = document.getElementById('nav-dropdown');
+
+    btnMenu?.addEventListener('click', e => {
+      e.stopPropagation();
+      navDropdown.classList.toggle('abierto');
+    });
+    document.addEventListener('click', e => {
+      if (!navDropdown?.contains(e.target) && e.target !== btnMenu) {
+        navDropdown?.classList.remove('abierto');
+      }
+    });
+
+    // Acciones del dropdown → delegar a los inputs de archivo globales
+    document.getElementById('nav-btn-excel')?.addEventListener('click', () => {
+      navDropdown?.classList.remove('abierto');
+      document.getElementById('mat-input-planilla-export')?.click();
+    });
+    document.getElementById('nav-btn-importar-excel')?.addEventListener('click', () => {
+      navDropdown?.classList.remove('abierto');
+      document.getElementById('mat-input-excel-import')?.click();
+    });
+    document.getElementById('nav-btn-cargar')?.addEventListener('click', () => {
+      navDropdown?.classList.remove('abierto');
+      document.getElementById('mat-input-cargar')?.click();
+    });
+    document.getElementById('nav-btn-resetear')?.addEventListener('click', () => {
+      navDropdown?.classList.remove('abierto');
+      // Delegar al botón de resetear del sidebar (si existe) o disparar modal directo
+      const btnReset = document.getElementById('mat-btn-resetear');
+      if (btnReset) {
+        btnReset.click();
+      }
     });
   });
 </script>
