@@ -2630,7 +2630,44 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 /* ── Revisión: ícono emoji en encabezado de grupo (v4.51) ────── */
 .rev-icono-grp {
   font-size: 14px;
-  margin-right: 5px;
-  vertical-align: middle;
-  line-height: 1;
+  margin
+
+/* ── Flechas de navegación flotantes (móvil/tablet, v4.54) ────── */
+.mat-nav-flechas {
+  position: fixed;
+  bottom: 24px;
+  left: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 40px);
+  grid-template-rows: repeat(3, 40px);
+  gap: 4px;
+  z-index: 390;
+  pointer-events: none;
+}
+.mat-nav-flechas button {
+  pointer-events: all;
+}
+.mat-nav-flecha {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(26, 23, 20, 0.68);
+  color: #fff;
+  border: none;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: opacity .15s;
+}
+.mat-nav-flecha.dim {
+  opacity: 0.18;
+  pointer-events: none;
+}
+.mat-nav-flecha-vacio {
+  width: 40px;
+  height: 40px;
 }

@@ -32,6 +32,8 @@ let _esScrollando        = false;   // true cuando el gesto táctil es scroll ve
 let _ultimoFueToque      = false;   // bloquea el click sintético que el browser dispara tras touchend
 let _touchTimer          = null;    // timer long press (350ms) para activar modo arrastre
 let _touchModoArrastre   = false;   // true cuando el long press activó selección de celdas
+let _mat_navFlechas      = null;    // elemento DOM del cluster de flechas flotantes
+let _mat_navScrollRef    = null;    // referencia al handler de scroll (para removerlo)
 
 const VALORES_CICLO = [0, 25, 50, 75, 100];
 
@@ -127,14 +129,6 @@ function terminaciones_inicializar(idProyecto) {
   }
   _mat_render();
 
-  // Aviso primera vez en móvil: instrucción de dos dedos para scrollear
-  if (interfaz_esMovil() && !localStorage.getItem('coa_hint_dosdedos')) {
-    setTimeout(() => {
-      interfaz_mostrarToast('1 dedo: seleccionar celdas · 2 dedos: desplazarte', 'info', 4000);
-      localStorage.setItem('coa_hint_dosdedos', '1');
-    }, 1200);
-  }
-
   // Si hay avances sin guardar de sesión anterior, preguntar si recuperar.
   // La vista ya muestra el estado oficial (último guardado). Si el usuario acepta,
   // se cargan los avances del borrador y se re-renderiza.
@@ -171,6 +165,87 @@ function terminaciones_inicializar(idProyecto) {
     );
   }
 }
+
+// ── Flechas de navegación flotantes (móvil/tablet) ──────────────────────────
+
+function _mat_crearFlechasNav() {
+  _mat_destruirFlechasNav();
+  if (!interfaz_esMovil()) return;
+  const panel = document.getElementById('panel-tab-term');
+  if (!panel) return;
+
+  // Solo mostrar si hay overflow en alguna dirección
+  const hayH = panel.scrollWidth  > panel.clientWidth  + 4;
+  const hayV = panel.scrollHeight > panel.clientHeight + 4;
+  if (!hayH && !hayV) return;
+
+  const el = document.createElement('div');
+  el.id = 'mat-nav-flechas';
+  el.className = 'mat-nav-flechas';
+  el.innerHTML =
+    '<div class="mat-nav-flecha-vacio"></div>' +
+    '<button class="mat-nav-flecha" id="mnf-up">↑</button>' +
+    '<div class="mat-nav-flecha-vacio"></div>' +
+    '<button class="mat-nav-flecha" id="mnf-left">←</button>' +
+    '<div class="mat-nav-flecha-vacio"></div>' +
+    '<button class="mat-nav-flecha" id="mnf-right">→</button>' +
+    '<div class="mat-nav-flecha-vacio"></div>' +
+    '<button class="mat-nav-flecha" id="mnf-down">↓</button>' +
+    '<div class="mat-nav-flecha-vacio"></div>';
+  document.body.appendChild(el);
+  _mat_navFlechas = el;
+
+  const PASO = 160;
+  el.addEventListener('click', function(e) {
+    const btn = e.target.closest('.mat-nav-flecha');
+    if (!btn) return;
+    switch (btn.id) {
+      case 'mnf-up':    panel.scrollBy({ top:  -PASO, behavior: 'smooth' }); break;
+      case 'mnf-down':  panel.scrollBy({ top:   PASO, behavior: 'smooth' }); break;
+      case 'mnf-left':  panel.scrollBy({ left: -PASO, behavior: 'smooth' }); break;
+      case 'mnf-right': panel.scrollBy({ left:  PASO, behavior: 'smooth' }); break;
+    }
+    setTimeout(_mat_actualizarFlechasNav, 320);
+  });
+
+  _mat_navScrollRef = _mat_actualizarFlechasNav;
+  panel.addEventListener('scroll', _mat_navScrollRef);
+  _mat_actualizarFlechasNav();
+}
+
+function _mat_actualizarFlechasNav() {
+  if (!_mat_navFlechas) return;
+  const panel = document.getElementById('panel-tab-term');
+  if (!panel) return;
+  const atL = panel.scrollLeft < 2;
+  const atR = panel.scrollLeft >= panel.scrollWidth  - panel.clientWidth  - 2;
+  const atT = panel.scrollTop  < 2;
+  const atB = panel.scrollTop  >= panel.scrollHeight - panel.clientHeight - 2;
+  const f = function(id, dim) {
+    const b = document.getElementById(id);
+    if (b) b.classList.toggle('dim', dim);
+  };
+  f('mnf-up',    atT);
+  f('mnf-down',  atB);
+  f('mnf-left',  atL);
+  f('mnf-right', atR);
+}
+
+function _mat_destruirFlechasNav() {
+  if (_mat_navFlechas) {
+    const panel = document.getElementById('panel-tab-term');
+    if (panel && _mat_navScrollRef) panel.removeEventListener('scroll', _mat_navScrollRef);
+    _mat_navFlechas.remove();
+    _mat_navFlechas = null;
+    _mat_navScrollRef = null;
+  }
+}
+
+function terminaciones_limpiar() {
+  _mat_destruirFlechasNav();
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 
 function _mat_render() {
   _mat_ocultarFlotante();
@@ -220,6 +295,9 @@ function _mat_render() {
 
   _mat_renderContenido();
   _mat_registrarEventos();
+
+  // Flechas de navegación: crear tras renderizar para que el DOM tenga overflow medible
+  if (interfaz_esMovil()) setTimeout(_mat_crearFlechasNav, 120);
 }
 
 // ── Sidebar escritorio ───────────────────────────────────────────────────────
@@ -850,12 +928,6 @@ function _mat_registrarEventosCeldas() {
     });
 
     td.addEventListener('touchstart', e => {
-      // Dos dedos → scroll libre, sin selección
-      if (e.touches.length >= 2) {
-        _mat_limpiarSeleccion();
-        _arrastrando = false;
-        return;
-      }
       e.preventDefault();
       _ultimoFueToque = true;
       _arrastrando = true;
@@ -866,13 +938,6 @@ function _mat_registrarEventosCeldas() {
     }, { passive: false });
 
     td.addEventListener('touchmove', e => {
-      // Dos dedos → cancelar selección y dejar scrollear
-      if (e.touches.length >= 2) {
-        _mat_detenerAutoScroll();
-        _mat_limpiarSeleccion();
-        _arrastrando = false;
-        return;
-      }
       e.preventDefault();
       const t = e.touches[0];
       _ptrClientX = t.clientX;

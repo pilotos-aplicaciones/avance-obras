@@ -33,6 +33,11 @@ function router_ir(vista, opciones = {}) {
 }
 
 function _router_navegar(vista, opciones = {}) {
+  // Limpiar elementos flotantes al salir de v-proyecto
+  if (_vistaActual === 'v-proyecto' && vista !== 'v-proyecto') {
+    if (typeof terminaciones_limpiar === 'function') terminaciones_limpiar();
+  }
+
   VISTAS.forEach(v => {
     const el = document.getElementById(v);
     if (el) el.style.display = 'none';
