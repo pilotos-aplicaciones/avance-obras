@@ -127,6 +127,14 @@ function terminaciones_inicializar(idProyecto) {
   }
   _mat_render();
 
+  // Aviso primera vez en móvil: instrucción de dos dedos para scrollear
+  if (interfaz_esMovil() && !localStorage.getItem('coa_hint_dosdedos')) {
+    setTimeout(() => {
+      interfaz_mostrarToast('1 dedo: seleccionar celdas · 2 dedos: desplazarte', 'info', 4000);
+      localStorage.setItem('coa_hint_dosdedos', '1');
+    }, 1200);
+  }
+
   // Si hay avances sin guardar de sesión anterior, preguntar si recuperar.
   // La vista ya muestra el estado oficial (último guardado). Si el usuario acepta,
   // se cargan los avances del borrador y se re-renderiza.
@@ -842,6 +850,12 @@ function _mat_registrarEventosCeldas() {
     });
 
     td.addEventListener('touchstart', e => {
+      // Dos dedos → scroll libre, sin selección
+      if (e.touches.length >= 2) {
+        _mat_limpiarSeleccion();
+        _arrastrando = false;
+        return;
+      }
       e.preventDefault();
       _ultimoFueToque = true;
       _arrastrando = true;
@@ -852,6 +866,13 @@ function _mat_registrarEventosCeldas() {
     }, { passive: false });
 
     td.addEventListener('touchmove', e => {
+      // Dos dedos → cancelar selección y dejar scrollear
+      if (e.touches.length >= 2) {
+        _mat_detenerAutoScroll();
+        _mat_limpiarSeleccion();
+        _arrastrando = false;
+        return;
+      }
       e.preventDefault();
       const t = e.touches[0];
       _ptrClientX = t.clientX;
