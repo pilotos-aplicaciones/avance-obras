@@ -18,6 +18,7 @@ function configProyecto_iniciarNuevo() {
     responsables: [],
     nombresActividades: {},
     actividadesCustom: [],
+    secuenciaDeptos: null,
   };
   _cf_modoEdicion = false;
   _cf_paso = 1;
@@ -34,6 +35,7 @@ function configProyecto_iniciarEdicion(id) {
   if (!('cantDeptosTipo' in _cf)) _cf.cantDeptosTipo = 0;
   if (!_cf.nombresActividades) _cf.nombresActividades = {};
   if (!_cf.actividadesCustom) _cf.actividadesCustom = [];
+  if (!('secuenciaDeptos' in _cf)) _cf.secuenciaDeptos = null;
   _cf_modoEdicion = true;
   _cf_paso = 1;
   _cf_renderizar();
@@ -48,11 +50,14 @@ function _cf_renderizar() {
 }
 
 function _cf_renderizarIndicador() {
+  const titulo = document.getElementById('cf-titulo-paso');
+  if (titulo) titulo.textContent = 'Paso ' + _cf_paso + ' de 4';
   for (let i = 1; i <= 4; i++) {
     const el = document.querySelector(`.paso-num[data-paso="${i}"]`);
     if (!el) continue;
-    el.classList.toggle('activo',    i === _cf_paso);
+    el.classList.toggle('activo',     i === _cf_paso);
     el.classList.toggle('completado', i < _cf_paso);
+    el.textContent = i < _cf_paso ? '✓' : String(i);
   }
 }
 
@@ -159,6 +164,9 @@ function _cf_paso2() {
       </table>
     </div>
     <div id="cf-total-deptos" class="cf-resumen-fila"></div>
+  </div>
+  <div id="cf-secuencia-wrap" class="solo-escritorio">
+    ${_cf_secuenciaInnerHTML()}
   </div>`;
 }
 
@@ -297,7 +305,21 @@ function _cf_registrarEventosPaso() {
       });
     });
     document.getElementById('cf-input-deptos-tipo')?.addEventListener('input', e => {
-      _cf.cantDeptosTipo = parseInt(e.target.value) || 0;
+      var nuevoN = parseInt(e.target.value) || 0;
+      _cf.cantDeptosTipo = nuevoN;
+      // Regenerar secuencia al cambiar el piso tipo
+      if (nuevoN > 0) {
+        var seq = [];
+        for (var i = 1; i <= nuevoN; i++) seq.push(i);
+        _cf.secuenciaDeptos = seq;
+      } else {
+        _cf.secuenciaDeptos = null;
+      }
+      var wrap = document.getElementById('cf-secuencia-wrap');
+      if (wrap) {
+        wrap.innerHTML = _cf_secuenciaInnerHTML();
+        if (nuevoN > 0) _cf_registrarDragSecuencia();
+      }
     });
     document.getElementById('btn-aplicar-tipo')?.addEventListener('click', () => {
       const cant = _cf.cantDeptosTipo;
@@ -312,6 +334,7 @@ function _cf_registrarEventosPaso() {
       _cf_actualizarPreviewDeptos();
     });
     _cf_actualizarPreviewDeptos();
+    _cf_registrarDragSecuencia();
   }
 
   if (_cf_paso === 3) {
@@ -648,6 +671,123 @@ function _cf_eliminarActividadCustom(numero) {
       .filter(function(o) { return o.faseEfectiva === fase; })
       .sort(function(a, b) { return a.posicion - b.posicion; })
       .forEach(function(o, i) { o.posicion = i; });
+  });
+}
+
+// ── Secuencia de avance (Paso 2) ─────────────────────────────────────────────
+
+// HTML de un chip individual.
+// Layout: [ ← → ] encima, [ ⋮⋮  N ] chip abajo.
+function _cf_seqItemHTML(pos, idx, total) {
+  var disL = idx === 0          ? ' disabled' : '';
+  var disR = idx === total - 1  ? ' disabled' : '';
+  return '<div class="seq-item" data-pos="' + pos + '">' +
+    '<div class="seq-item-arrows">' +
+      '<button class="seq-btn-mover" data-dir="left"' + disL + '>←</button>' +
+      '<button class="seq-btn-mover" data-dir="right"' + disR + '>→</button>' +
+    '</div>' +
+    '<div class="seq-item-chip">' +
+      '<span class="seq-drag-handle" draggable="true" title="Arrastrar para reordenar">⋮⋮</span>' +
+      '<span class="seq-label">' + pos + '</span>' +
+    '</div>' +
+    '</div>';
+}
+
+// Devuelve el HTML interno de la sección Secuencia de avance.
+// Si cantDeptosTipo = 0, devuelve cadena vacía (sección oculta).
+function _cf_secuenciaInnerHTML() {
+  var n = _cf.cantDeptosTipo || 0;
+  if (n === 0) return '';
+  // Inicializar o ajustar la secuencia si el tamaño no coincide
+  if (!_cf.secuenciaDeptos || _cf.secuenciaDeptos.length !== n) {
+    var seq = [];
+    for (var i = 1; i <= n; i++) seq.push(i);
+    _cf.secuenciaDeptos = seq;
+  }
+  var items = _cf.secuenciaDeptos.map(function(pos, idx) {
+    return _cf_seqItemHTML(pos, idx, _cf.secuenciaDeptos.length);
+  }).join('');
+  return '<div class="cf-seccion">' +
+    '<h3>Secuencia de avance</h3>' +
+    '<p class="cf-hint">Usa las flechas o arrastra para definir el orden en que se trabajan los departamentos. Se aplica igual a todos los pisos.</p>' +
+    '<div class="seq-lista" id="seq-lista">' + items + '</div>' +
+    '<p class="cf-hint" style="margin-top:.5rem">Los pisos con menos departamentos mantienen el mismo orden, omitiendo los que no existen.</p>' +
+    '</div>';
+}
+
+// Re-renderiza solo la lista de chips dentro de la sección ya visible.
+function _cf_renderizarListaSecuencia() {
+  var lista = document.getElementById('seq-lista');
+  if (!lista || !_cf.secuenciaDeptos) return;
+  lista.innerHTML = _cf.secuenciaDeptos.map(function(pos, idx) {
+    return _cf_seqItemHTML(pos, idx, _cf.secuenciaDeptos.length);
+  }).join('');
+  _cf_registrarDragSecuencia();
+}
+
+// Registra el drag-and-drop de la lista de secuencia.
+function _cf_registrarDragSecuencia() {
+  var _src = null;
+  var lista = document.getElementById('seq-lista');
+  if (!lista) return;
+
+  lista.querySelectorAll('.seq-drag-handle').forEach(function(handle) {
+    handle.addEventListener('dragstart', function(e) {
+      var item = handle.closest('.seq-item');
+      if (!item) return;
+      _src = item;
+      item.classList.add('seq-arrastrando');
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', item.dataset.pos); } catch(x) {}
+    });
+    handle.addEventListener('dragend', function() {
+      lista.querySelectorAll('.seq-arrastrando').forEach(function(el) { el.classList.remove('seq-arrastrando'); });
+      lista.querySelectorAll('.seq-drop-target').forEach(function(el) { el.classList.remove('seq-drop-target'); });
+      _src = null;
+    });
+  });
+
+  lista.querySelectorAll('.seq-item').forEach(function(item) {
+    item.addEventListener('dragover', function(e) {
+      if (!_src || _src === item) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      lista.querySelectorAll('.seq-drop-target').forEach(function(el) { el.classList.remove('seq-drop-target'); });
+      item.classList.add('seq-drop-target');
+    });
+    item.addEventListener('drop', function(e) {
+      if (!_src || _src === item) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var srcPos = parseInt(_src.dataset.pos);
+      var dstPos = parseInt(item.dataset.pos);
+      var srcIdx = _cf.secuenciaDeptos.indexOf(srcPos);
+      var dstIdx = _cf.secuenciaDeptos.indexOf(dstPos);
+      if (srcIdx >= 0 && dstIdx >= 0) {
+        _cf.secuenciaDeptos.splice(srcIdx, 1);
+        _cf.secuenciaDeptos.splice(dstIdx, 0, srcPos);
+      }
+      _cf_renderizarListaSecuencia();
+    });
+  });
+
+  // Botones ← → para mover chips con click
+  lista.querySelectorAll('.seq-btn-mover').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var item = btn.closest('.seq-item');
+      if (!item) return;
+      var pos  = parseInt(item.dataset.pos);
+      var idx  = _cf.secuenciaDeptos.indexOf(pos);
+      if (idx < 0) return;
+      var dir  = btn.dataset.dir;
+      var swapIdx = dir === 'left' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= _cf.secuenciaDeptos.length) return;
+      var tmp = _cf.secuenciaDeptos[idx];
+      _cf.secuenciaDeptos[idx]     = _cf.secuenciaDeptos[swapIdx];
+      _cf.secuenciaDeptos[swapIdx] = tmp;
+      _cf_renderizarListaSecuencia();
+    });
   });
 }
 

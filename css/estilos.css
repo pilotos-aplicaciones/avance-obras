@@ -396,23 +396,23 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 /* ── Wizard de configuración ──────────────────────────────── */
 
 .config-layout  { flex: 1; display: flex; flex-direction: column; }
-.config-header  { padding: 1.2rem 1.5rem; border-bottom: 1.5px solid var(--borde-suave); background: #fff; }
-.config-titulo  { font-size: 1.1rem; font-weight: 700; margin-bottom: .75rem; }
+.config-header  { padding: 14px 20px; border-bottom: 1.5px solid var(--borde-suave); background: #fff; display: flex; align-items: center; justify-content: space-between; }
+.config-titulo  { font-size: 12px; font-weight: 600; color: var(--texto-2); }
 .config-cuerpo  { flex: 1; overflow-y: auto; padding: 1.5rem; }
 .config-footer  { padding: 1rem 1.5rem; border-top: 1.5px solid var(--borde-suave); background: #fff; display: flex; gap: .75rem; align-items: center; }
 
 /* Indicador de pasos */
-.pasos-indicador { display: flex; align-items: center; gap: .5rem; }
+.pasos-indicador { display: flex; align-items: center; gap: 5px; }
 .paso-num {
-  width: 28px; height: 28px; border-radius: 50%;
+  width: 26px; height: 26px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: .8rem;
+  font-weight: 600; font-size: 12px;
   background: var(--fondo-alt); color: var(--texto-3); border: 1.5px solid var(--borde);
   transition: all .2s;
 }
 .paso-num.activo    { background: var(--acento); color: #fff; border-color: var(--acento); }
 .paso-num.completado{ background: var(--exito);  color: #fff; border-color: var(--exito); }
-.paso-sep { height: 2px; width: 24px; background: var(--borde); border-radius: 1px; }
+.paso-sep { height: 2px; width: 20px; background: var(--borde); border-radius: 1px; }
 
 /* Formulario */
 .cf-seccion { display: flex; flex-direction: column; gap: 1rem; max-width: 800px; }
@@ -549,6 +549,79 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 }
 .btn-mover:disabled { opacity: .3; cursor: default; }
 .sel-fase { font-size: .75rem; padding: .2rem .4rem; border: 1px solid var(--borde); border-radius: 4px; }
+
+/* ── Secuencia de avance (wizard Paso 2) ─────────────────── */
+.seq-lista {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 5px;
+  margin-top: .5rem;
+  padding-bottom: 4px;
+}
+/* Contenedor por depto: flechas arriba, chip abajo */
+.seq-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  user-select: none;
+}
+/* Fila de flechas */
+.seq-item-arrows {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+}
+.seq-btn-mover {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0;
+  font-size: .65rem;
+  color: var(--texto-2);
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.seq-btn-mover:hover:not([disabled]) { background: var(--surface2); }
+.seq-btn-mover[disabled]             { opacity: .2; cursor: default; }
+/* Chip del departamento */
+.seq-item-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radio-sm);
+}
+.seq-drag-handle {
+  cursor: grab;
+  color: var(--texto-3);
+  font-size: .8rem;
+  line-height: 1;
+  user-select: none;
+  letter-spacing: -2px;
+  padding: 0 1px;
+}
+.seq-drag-handle:active { cursor: grabbing; }
+.seq-label {
+  font-size: .85rem;
+  font-weight: 500;
+  min-width: 16px;
+  text-align: center;
+  color: var(--texto-1);
+}
+.seq-arrastrando .seq-item-chip { opacity: .4; }
+.seq-drop-target .seq-item-chip { box-shadow: inset 0 0 0 2px var(--accent); }
 
 /* ── Actividades custom (wizard Paso 3) ──────────────────── */
 .act-item-custom { background: #fffbeb; }
@@ -2433,4 +2506,131 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   color: var(--acento) !important;
   border-color: var(--acento) !important;
   flex-shrink: 0;
+}
+
+/* ── Panel Revisión ──────────────────────────────────────────────────────── */
+
+.rev-panel { padding: 4px 2px; }
+
+.rev-vacio {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; padding: 48px 20px;
+  color: var(--texto-2); font-size: .9rem;
+}
+.rev-vacio i { font-size: 2rem; color: var(--exito); }
+
+.rev-grupo { margin-bottom: 20px; }
+
+.rev-grupo-header {
+  display: flex; align-items: center; gap: 7px; margin-bottom: 8px;
+}
+
+.rev-titulo {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600; color: var(--texto-2);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.rev-titulo i { font-size: 14px; line-height: 1; }
+
+.rev-count {
+  font-size: 11px; background: var(--fondo-alt);
+  border: 0.5px solid var(--borde); border-radius: 10px;
+  padding: 1px 8px; color: var(--texto-2);
+}
+
+.rev-alerta {
+  background: var(--surface); border: 0.5px solid var(--borde);
+  border-radius: var(--radio-sm); border-left: 3px solid transparent;
+  padding: 9px 12px; margin-bottom: 6px;
+}
+
+.rev-texto { font-size: 13px; color: var(--texto); line-height: 1.5; }
+
+.rev-detalle { font-size: 11px; color: var(--texto-2); margin-top: 3px; line-height: 1.5; }
+
+.rev-fase-tag {
+  display: inline-flex; align-items: center;
+  border-radius: 4px; padding: 1px 7px;
+  font-size: 11px; font-weight: 600; margin-right: 3px;
+}
+
+.rev-chip {
+  display: inline-block; font-size: 11px;
+  padding: 1px 6px; border-radius: 4px;
+  border: 0.5px solid transparent;
+  margin: 0 1px; font-weight: 500; line-height: 1.6;
+}
+.rev-chip-skip { background: #fff0f0; color: #a32d2d; border-color: #f09595 !important; }
+.rev-chip-idle { background: var(--fondo-alt); color: var(--texto-3); border-color: var(--borde) !important; }
+
+.rev-seq {
+  display: flex; align-items: center; gap: 2px;
+  flex-wrap: wrap; margin-bottom: 5px;
+}
+
+.rev-arr { font-size: 10px; color: var(--texto-3); margin: 0 1px; }
+
+.rev-legend {
+  display: flex; gap: 12px; font-size: 11px;
+  color: var(--texto-2); margin-top: 4px; flex-wrap: wrap;
+}
+.rev-legend > span { display: inline-flex; align-items: center; gap: 4px; }
+
+.rev-legend-sq {
+  width: 10px; height: 10px; border-radius: 2px;
+  border: 0.5px solid transparent; display: inline-block; flex-shrink: 0;
+}
+.rev-legend-skip { background: #fff0f0; border-color: #f09595 !important; }
+.rev-legend-idle { background: var(--fondo-alt); border-color: var(--borde) !important; }
+
+/* ── Revisión: filas inline piso+chips (v4.50) ───────────────── */
+.rev-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.rev-piso-lbl {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+  white-space: nowrap;
+  margin-right: 4px;
+  min-width: 44px;
+}
+.rev-legend-sep {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--borde-suave);
+}
+
+/* ── Revisión: chip con badge de deptos (v4.51) ──────────────── */
+.rev-chip-wrap {
+  position: relative;
+  display: inline-block;
+  margin: 4px 10px 4px 2px;
+  vertical-align: top;
+}
+.rev-chip-badge {
+  position: absolute;
+  top: -7px;
+  right: -9px;
+  font-size: 9px;
+  font-weight: 600;
+  color: #fff;
+  border-radius: 10px;
+  padding: 0 4px;
+  line-height: 15px;
+  min-width: 15px;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* ── Revisión: ícono emoji en encabezado de grupo (v4.51) ────── */
+.rev-icono-grp {
+  font-size: 14px;
+  margin-right: 5px;
+  vertical-align: middle;
+  line-height: 1;
 }

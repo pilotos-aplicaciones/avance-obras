@@ -1,5 +1,39 @@
 // Lógica de negocio pura — sin DOM, sin localStorage, sin efectos secundarios.
 
+// ── Secuencia de avance ───────────────────────────────────────────────────────
+
+// Reordena los deptos de UN piso según la secuencia definida en la configuración.
+// secuencia: array de posiciones 1-based en el orden deseado, ej. [6,5,4,3,2,1].
+// Si el piso tiene menos deptos que la secuencia, se omiten las posiciones que
+// no existen. Si tiene más, los extra se agregan al final en orden natural.
+function logica_aplicarSecuencia(deptos, secuencia) {
+  if (!secuencia || secuencia.length === 0) return deptos;
+  var n = deptos.length;
+  var resultado = [];
+  var usados = new Set();
+  secuencia.forEach(function(pos) {
+    var idx = pos - 1;
+    if (idx >= 0 && idx < n) {
+      resultado.push(deptos[idx]);
+      usados.add(idx);
+    }
+  });
+  // Deptos del piso que quedan fuera de la secuencia (piso con más deptos que piso tipo)
+  deptos.forEach(function(d, idx) {
+    if (!usados.has(idx)) resultado.push(d);
+  });
+  return resultado;
+}
+
+// Lista plana de todos los deptos del proyecto, respetando la secuencia de avance.
+// Reemplaza a logica_listaDeptosPlana cuando se necesita el orden correcto.
+function logica_listaDeptosOrdenados(departamentos, secuencia) {
+  if (!secuencia || secuencia.length === 0) return logica_listaDeptosPlana(departamentos);
+  return departamentos.flatMap(function(p) {
+    return logica_aplicarSecuencia(p.deptos || [], secuencia);
+  });
+}
+
 // ── Nomenclatura de departamentos ────────────────────────────────────────────
 
 function logica_generarNomenclatura(piso, numEnPiso) {
@@ -97,7 +131,7 @@ function logica_deptosTerminadosActividad(matrices, faseKey, numActividad, todos
 
 function logica_avanceActividad(matrices, faseKey, numActividad, todosDeptos) {
   const term = logica_deptosTerminadosActividad(matrices, faseKey, numActividad, todosDeptos);
-  return todosDeptos.length ? Math.round((term / todosDeptos.length) * 100) : 0;
+  return todosDeptos.length ? parseFloat(((term / todosDeptos.length) * 100).toFixed(1)) : 0;
 }
 
 function logica_pisoActividad(matrices, faseKey, numActividad, deptosLista, departamentos) {
@@ -166,7 +200,7 @@ function logica_promediosFase(config, matrices, baseline, fase, deptosLista, dep
   const r2  = n => parseFloat(n.toFixed(2));
 
   return {
-    avance:      Math.round(avg('avance')),
+    avance:      parseFloat(avg('avance').toFixed(1)),
     piso:        r2(avg('piso')),
     deltaPiso:   r2(avg('deltaPiso')),
     deptos:      r2(avg('deptos')),

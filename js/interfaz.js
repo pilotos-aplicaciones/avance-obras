@@ -276,5 +276,8 @@ function interfaz_fmtNum(n, decimales = 1) {
 
 function interfaz_fmtPct(n) {
   if (n === null || n === undefined || isNaN(n)) return '—';
-  return Math.round(n) + '%';
+  return Number(n).toLocaleString('es-CL', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }) + '%';
 }

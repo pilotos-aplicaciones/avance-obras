@@ -93,7 +93,7 @@ function terminaciones_inicializar(idProyecto) {
     : datos_cargarMatrices(idProyecto);    // estado normal
 
   _mat_baseline = {};
-  _mat_deptos   = logica_listaDeptosPlana(_mat_config.departamentos || []);
+  _mat_deptos   = logica_listaDeptosOrdenados(_mat_config.departamentos || [], _mat_config.secuenciaDeptos || null);
   _mat_fasesActivas = logica_fasesEfectivas(_mat_config);
 
   // En móvil: comenzar filtrado por piso sugerido y primera fase activa.
@@ -224,13 +224,13 @@ function _mat_sidebarEscritorioHTML() {
 
   const tabFases = _mat_fasesActivas.map(function(f) {
     const prom   = logica_promediosFase(_mat_config, _mat_datos, _mat_baseline, f, deptosTodos, deptosEstr);
-    const pct    = Math.round(prom.avance || 0);
+    const pct    = parseFloat((prom.avance || 0).toFixed(1));
     const nombre = NOMBRES_FASES[f].split('–')[0].trim();
     const activo = _mat_tabActiva === 'fase_' + f;
     return `<button class="sidebar-tab${activo ? ' activo' : ''}" data-tab="fase_${f}" style="--fase-enc:${FASE_COLORES[f].enc}">
       <span class="sidebar-icono sidebar-icono-fase"></span>
       <span class="sidebar-texto">${nombre}</span>
-      <span class="sidebar-pct">${pct}%</span>
+      <span class="sidebar-pct">${pct.toLocaleString('es-CL', {minimumFractionDigits:1,maximumFractionDigits:1})}%</span>
     </button>`;
   }).join('');
 
@@ -267,6 +267,10 @@ function _mat_sidebarEscritorioHTML() {
       ${tabFases}
       <button class="sidebar-tab${_mat_tabActiva === 'todas' ? ' activo' : ''}" data-tab="todas">
         <span class="sidebar-icono">⊞</span><span class="sidebar-texto">Todas las fases</span>
+      </button>
+      <div class="sidebar-sep"></div>
+      <button class="sidebar-tab${_mat_tabActiva === 'revision' ? ' activo' : ''}" data-tab="revision">
+        <span class="sidebar-icono">🔍</span><span class="sidebar-texto">Revisión</span>
       </button>
     </nav>
     <!-- Botón oculto — lo usa el dropdown ☰ del navbar para resetear avances -->
@@ -352,6 +356,8 @@ function _mat_renderContenido() {
     contenido.innerHTML = _mat_tablaResumen();
   } else if (_mat_tabActiva === 'todas') {
     contenido.innerHTML = _mat_fasesActivas.map(f => _mat_tablaFase(f)).join('');
+  } else if (_mat_tabActiva === 'revision') {
+    contenido.innerHTML = revision_renderPanel();
   } else if (_mat_tabActiva.startsWith('fase_')) {
     const fase = parseInt(_mat_tabActiva.split('_')[1]);
     contenido.innerHTML = _mat_tablaFase(fase);
@@ -385,7 +391,7 @@ function _mat_tablaResumen() {
     return vals.length ? parseFloat((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2)) : 0;
   };
   const cons = {
-    avance:      Math.round(consAvg('avance')),
+    avance:      parseFloat(consAvg('avance').toFixed(1)),
     piso:        consAvg('piso'),
     deltaPiso:   consAvg('deltaPiso'),
     deptos:      consAvg('deptos'),
@@ -509,7 +515,7 @@ function _mat_tablaFase(fase) {
     nums.forEach(num => {
       if ((celdas[depto + '_' + num] || 0) >= 100) countAl100++;
     });
-    const pct = Math.round((countAl100 / nums.length) * 100);
+    const pct = parseFloat(((countAl100 / nums.length) * 100).toFixed(1));
     return `<td class="num">${interfaz_fmtPct(pct)}</td>`;
   }).join('');
 
@@ -972,7 +978,7 @@ function _mat_recalcularFilaTermino(faseKey, fase) {
       nums.forEach(num => {
         if ((celdas[depto + '_' + num] || 0) >= 100) countAl100++;
       });
-      const pct = Math.round((countAl100 / nums.length) * 100);
+      const pct = parseFloat(((countAl100 / nums.length) * 100).toFixed(1));
       td.textContent = interfaz_fmtPct(pct);
     });
   });
@@ -999,9 +1005,9 @@ function _mat_actualizarPctSidebar() {
     const fase = parseInt(btn.dataset.tab.split('_')[1]);
     if (isNaN(fase)) return;
     const prom = logica_promediosFase(_mat_config, _mat_datos, _mat_baseline, fase, deptosTodos, deptosEstr);
-    const pct  = Math.round(prom.avance || 0);
+    const pct  = parseFloat((prom.avance || 0).toFixed(1));
     const span = btn.querySelector('.sidebar-pct');
-    if (span) span.textContent = pct + '%';
+    if (span) span.textContent = pct.toLocaleString('es-CL', {minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
   });
 }
 
@@ -1486,7 +1492,8 @@ function _mat_deptosFiltrados() {
   if (_mat_pisoFiltro === 'todos') return _mat_deptos;
   const piso = parseInt(_mat_pisoFiltro);
   const entry = (_mat_config.departamentos || []).find(d => d.piso === piso);
-  return entry ? entry.deptos : [];
+  if (!entry) return [];
+  return logica_aplicarSecuencia(entry.deptos || [], _mat_config.secuenciaDeptos || null);
 }
 
 // Departamentos filtrados como estructura [{piso, cantidad, deptos}] — base para
@@ -1672,7 +1679,7 @@ function _mat_mostrarFiltroActividades(btnRef) {
   var anterior = document.getElementById('mat-panel-filtro');
   if (anterior) { anterior.remove(); return; }
 
-  if (_mat_tabActiva === 'resumen') {
+  if (_mat_tabActiva === 'resumen' || _mat_tabActiva === 'revision') {
     interfaz_mostrarToast('El filtro aplica en pestanas F1-F6 y Todas.', 'aviso');
     return;
   }
@@ -1877,7 +1884,7 @@ function _mat_exportarExcel() {
     interfaz_mostrarToast('La libreria Excel no esta lista. Reintenta en un momento.', 'error');
     return;
   }
-  var deptos        = logica_listaDeptosPlana(_mat_config.departamentos || []);
+  var deptos        = logica_listaDeptosOrdenados(_mat_config.departamentos || [], _mat_config.secuenciaDeptos || null);
   var fasesActivas  = logica_fasesEfectivas(_mat_config);
   var encabezado    = ['Codigo', 'Actividad', '% Avance', 'Piso Aprox.', 'Deptos terminados'].concat(deptos);
   var filas         = [encabezado];
