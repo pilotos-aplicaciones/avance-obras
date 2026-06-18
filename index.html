@@ -25,7 +25,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name">Control de Avances</span>
-        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.55</span></span>
+        <span class="nav-app-sub">RVC Constructora · <span class="nav-version">v4.54</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -65,7 +65,7 @@
       <img src="icons/logo_navbar.png" class="navbar-logo-img" alt="RVC">
       <div class="nav-app-info">
         <span class="nav-app-name" id="cf-titulo-nav">Nuevo Proyecto</span>
-        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.55</span></span>
+        <span class="nav-app-sub">Control de Avances · <span class="nav-version">v4.54</span></span>
       </div>
     </div>
     <span class="navbar-spacer"></span>
@@ -197,15 +197,16 @@
 <!-- Toast de notificaciones -->
 <div class="toast" id="toast"></div>
 
-<!-- Flechas de navegación flotantes (solo móvil/tablet, v4.55) -->
-<div id="mat-nav-flechas">
-  <div></div><button id="mnf-up">↑</button><div></div>
-  <button id="mnf-left">←</button><div></div><button id="mnf-right">→</button>
-  <div></div><button id="mnf-down">↓</button><div></div>
-</div>
-
 <!-- Botón guardar flotante (aparece cuando hay cambios sin exportar) -->
 <button id="btn-guardar-flotante" title="Guardar respaldo JSON">💾</button>
+
+<!-- Botones de navegación móvil (↑ ↓ ← →) — solo aparecen dentro de un proyecto -->
+<div id="nav-scroll-btns" style="display:none;" aria-label="Navegación de pantalla">
+  <button id="nav-scroll-up"    class="nav-scroll-btn" aria-label="Subir"><i class="ti ti-arrow-up"    aria-hidden="true"></i></button>
+  <button id="nav-scroll-left"  class="nav-scroll-btn" aria-label="Izquierda"><i class="ti ti-arrow-left"  aria-hidden="true"></i></button>
+  <button id="nav-scroll-right" class="nav-scroll-btn" aria-label="Derecha"><i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  <button id="nav-scroll-down"  class="nav-scroll-btn" aria-label="Bajar"><i class="ti ti-arrow-down"  aria-hidden="true"></i></button>
+</div>
 
 
 <!-- ══════════════════════════════════════════════════════════

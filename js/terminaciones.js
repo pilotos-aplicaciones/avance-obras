@@ -126,7 +126,9 @@ function terminaciones_inicializar(idProyecto) {
     window._mat_resizeRegistrado = true;
   }
   _mat_render();
-  if (interfaz_esMovil()) _mat_registrarFlechasNav();
+
+  // Mostrar botones de navegación en móvil (v4.54)
+  if (typeof navScroll_mostrar === 'function') navScroll_mostrar();
 
   // Si hay avances sin guardar de sesión anterior, preguntar si recuperar.
   // La vista ya muestra el estado oficial (último guardado). Si el usuario acepta,
@@ -164,52 +166,6 @@ function terminaciones_inicializar(idProyecto) {
     );
   }
 }
-
-// ── Flechas de navegación flotantes ─────────────────────────────────────────
-
-// Actualiza qué flechas están atenuadas según la posición del scroll
-function _mat_actualizarFlechasNav() {
-  const panel = document.getElementById('panel-tab-term');
-  if (!panel) return;
-  const dim = function(id, cond) {
-    const b = document.getElementById(id);
-    if (b) b.classList.toggle('dim', cond);
-  };
-  dim('mnf-up',    panel.scrollTop  < 2);
-  dim('mnf-down',  panel.scrollTop  >= panel.scrollHeight - panel.clientHeight - 2);
-  dim('mnf-left',  panel.scrollLeft < 2);
-  dim('mnf-right', panel.scrollLeft >= panel.scrollWidth  - panel.clientWidth  - 2);
-}
-
-// Registrar eventos — llamado desde terminaciones_inicializar()
-let _mat_flechasRegistradas = false;
-function _mat_registrarFlechasNav() {
-  // Click handler global (una sola vez en toda la sesión)
-  if (!_mat_flechasRegistradas) {
-    document.getElementById('mat-nav-flechas').addEventListener('click', function(e) {
-      const btn = e.target.closest('button');
-      if (!btn) return;
-      const panel = document.getElementById('panel-tab-term');
-      if (!panel) return;
-      const PASO = 180;
-      if (btn.id === 'mnf-up')    panel.scrollBy({ top:  -PASO, behavior: 'smooth' });
-      if (btn.id === 'mnf-down')  panel.scrollBy({ top:   PASO, behavior: 'smooth' });
-      if (btn.id === 'mnf-left')  panel.scrollBy({ left: -PASO, behavior: 'smooth' });
-      if (btn.id === 'mnf-right') panel.scrollBy({ left:  PASO, behavior: 'smooth' });
-      setTimeout(_mat_actualizarFlechasNav, 350);
-    });
-    _mat_flechasRegistradas = true;
-  }
-  // Mostrar flechas y conectar scroll listener al panel
-  const panel = document.getElementById('panel-tab-term');
-  if (panel) {
-    document.body.classList.add('proyecto-con-fase');
-    panel.addEventListener('scroll', _mat_actualizarFlechasNav);
-    _mat_actualizarFlechasNav();
-  }
-}
-
-// ────────────────────────────────────────────────────────────────────────────
 
 function _mat_render() {
   _mat_ocultarFlotante();
@@ -2265,4 +2221,123 @@ async function _mat_exportarPlanilla(file) {
       const tit = document.getElementById('mat-progreso-titulo');
       if (tit) { tit.textContent = '✓ Planilla actualizada'; tit.style.color = 'var(--exito, #2e7d32)'; }
       const msg = document.getElementById('mat-progreso-msg');
-      if (msg) msg.textContent = actualizadas + ' celdas escritas
+      if (msg) msg.textContent = actualizadas + ' celdas escritas en la planilla.';
+    }
+  } catch (err) {
+    _mat_ocultarProgreso();
+    interfaz_mostrarToast('Error al exportar: ' + err.message, 'error');
+  }
+}
+
+// ── Botones de navegación móvil (v4.54) ─────────────────────────────────────
+// Lógica de los 4 botones flotantes (↑ ↓ ← →) para desplazar la matriz.
+// Solo activos en modo móvil dentro de la vista de proyecto.
+
+(function () {
+
+  var _nav_intervalo = null;
+
+  // Devuelve el contenedor que tiene el scroll de la matriz.
+  function _nav_panel() {
+    return document.getElementById('mat-area-contenido') ||
+           document.getElementById('panel-tab-term');
+  }
+
+  // Revisa los límites del scroll y atenúa los botones que no pueden avanzar.
+  function _nav_actualizarEstado() {
+    var panel = _nav_panel();
+    if (!panel) return;
+    var up    = document.getElementById('nav-scroll-up');
+    var down  = document.getElementById('nav-scroll-down');
+    var left  = document.getElementById('nav-scroll-left');
+    var right = document.getElementById('nav-scroll-right');
+    if (!up) return;
+
+    var atTop    = panel.scrollTop <= 1;
+    var atBottom = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 2;
+    var atLeft   = panel.scrollLeft <= 1;
+    var atRight  = panel.scrollLeft + panel.clientWidth >= panel.scrollWidth - 2;
+
+    up.classList.toggle('atenuado',    atTop);
+    down.classList.toggle('atenuado',  atBottom);
+    left.classList.toggle('atenuado',  atLeft);
+    right.classList.toggle('atenuado', atRight);
+  }
+
+  // Desplaza el panel un paso en la dirección indicada.
+  function _nav_mover(dir) {
+    var panel = _nav_panel();
+    if (!panel) return;
+    var paso = 90;
+    if      (dir === 'up')    panel.scrollBy({ top: -paso, behavior: 'smooth' });
+    else if (dir === 'down')  panel.scrollBy({ top:  paso, behavior: 'smooth' });
+    else if (dir === 'left')  panel.scrollBy({ left: -paso, behavior: 'smooth' });
+    else if (dir === 'right') panel.scrollBy({ left:  paso, behavior: 'smooth' });
+    setTimeout(_nav_actualizarEstado, 150);
+  }
+
+  // Registra el listener de scroll en el panel para actualizar estados.
+  function _nav_escucharScroll() {
+    var panel = _nav_panel();
+    if (!panel || panel._navScrollRegistrado) return;
+    panel.addEventListener('scroll', _nav_actualizarEstado, { passive: true });
+    panel._navScrollRegistrado = true;
+  }
+
+  // Muestra los botones y activa el seguimiento del scroll.
+  function navScroll_mostrar() {
+    if (!interfaz_esMovil()) return;
+    var btns = document.getElementById('nav-scroll-btns');
+    if (!btns) return;
+    btns.style.display = 'grid';
+    // Espera a que el DOM de la matriz esté listo
+    setTimeout(function () {
+      _nav_escucharScroll();
+      _nav_actualizarEstado();
+    }, 80);
+  }
+
+  // Oculta los botones al salir del proyecto.
+  function navScroll_ocultar() {
+    var btns = document.getElementById('nav-scroll-btns');
+    if (btns) btns.style.display = 'none';
+  }
+
+  // Exponer al scope global para que router.js y terminaciones_inicializar los llamen.
+  window.navScroll_mostrar  = navScroll_mostrar;
+  window.navScroll_ocultar  = navScroll_ocultar;
+  window.navScroll_actualizar = _nav_actualizarEstado;
+
+  // Registrar eventos de clic y pulsación continua en cada botón.
+  document.addEventListener('DOMContentLoaded', function () {
+    var dirs = ['up', 'down', 'left', 'right'];
+    dirs.forEach(function (dir) {
+      var btn = document.getElementById('nav-scroll-' + dir);
+      if (!btn) return;
+
+      // Clic normal (también cubre tap rápido en táctil)
+      btn.addEventListener('click', function () { _nav_mover(dir); });
+
+      // Pulsación continua táctil: 350 ms de espera, luego repite cada 120 ms
+      btn.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        _nav_mover(dir);
+        _nav_intervalo = setTimeout(function () {
+          _nav_intervalo = setInterval(function () { _nav_mover(dir); }, 120);
+        }, 350);
+      }, { passive: false });
+
+      btn.addEventListener('touchend', function () {
+        clearTimeout(_nav_intervalo);
+        clearInterval(_nav_intervalo);
+        _nav_intervalo = null;
+      });
+      btn.addEventListener('touchcancel', function () {
+        clearTimeout(_nav_intervalo);
+        clearInterval(_nav_intervalo);
+        _nav_intervalo = null;
+      });
+    });
+  });
+
+})();
