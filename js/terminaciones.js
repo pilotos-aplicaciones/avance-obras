@@ -32,8 +32,6 @@ let _esScrollando        = false;   // true cuando el gesto táctil es scroll ve
 let _ultimoFueToque      = false;   // bloquea el click sintético que el browser dispara tras touchend
 let _touchTimer          = null;    // timer long press (350ms) para activar modo arrastre
 let _touchModoArrastre   = false;   // true cuando el long press activó selección de celdas
-let _mat_navFlechas      = null;    // elemento DOM del cluster de flechas flotantes
-let _mat_navScrollRef    = null;    // referencia al handler de scroll (para removerlo)
 
 const VALORES_CICLO = [0, 25, 50, 75, 100];
 
@@ -128,6 +126,7 @@ function terminaciones_inicializar(idProyecto) {
     window._mat_resizeRegistrado = true;
   }
   _mat_render();
+  if (interfaz_esMovil()) _mat_registrarFlechasNav();
 
   // Si hay avances sin guardar de sesión anterior, preguntar si recuperar.
   // La vista ya muestra el estado oficial (último guardado). Si el usuario acepta,
@@ -166,78 +165,47 @@ function terminaciones_inicializar(idProyecto) {
   }
 }
 
-// ── Flechas de navegación flotantes (móvil/tablet) ──────────────────────────
+// ── Flechas de navegación flotantes ─────────────────────────────────────────
 
-function _mat_crearFlechasNav() {
-  _mat_destruirFlechasNav();
-  if (!interfaz_esMovil()) return;
-  const panel = document.getElementById('panel-tab-term');
-  if (!panel) return;
-
-  const el = document.createElement('div');
-  el.id = 'mat-nav-flechas';
-  el.className = 'mat-nav-flechas';
-  el.innerHTML =
-    '<div class="mat-nav-flecha-vacio"></div>' +
-    '<button class="mat-nav-flecha" id="mnf-up">↑</button>' +
-    '<div class="mat-nav-flecha-vacio"></div>' +
-    '<button class="mat-nav-flecha" id="mnf-left">←</button>' +
-    '<div class="mat-nav-flecha-vacio"></div>' +
-    '<button class="mat-nav-flecha" id="mnf-right">→</button>' +
-    '<div class="mat-nav-flecha-vacio"></div>' +
-    '<button class="mat-nav-flecha" id="mnf-down">↓</button>' +
-    '<div class="mat-nav-flecha-vacio"></div>';
-  document.body.appendChild(el);
-  _mat_navFlechas = el;
-
-  const PASO = 160;
-  el.addEventListener('click', function(e) {
-    const btn = e.target.closest('.mat-nav-flecha');
-    if (!btn) return;
-    switch (btn.id) {
-      case 'mnf-up':    panel.scrollBy({ top:  -PASO, behavior: 'smooth' }); break;
-      case 'mnf-down':  panel.scrollBy({ top:   PASO, behavior: 'smooth' }); break;
-      case 'mnf-left':  panel.scrollBy({ left: -PASO, behavior: 'smooth' }); break;
-      case 'mnf-right': panel.scrollBy({ left:  PASO, behavior: 'smooth' }); break;
-    }
-    setTimeout(_mat_actualizarFlechasNav, 320);
-  });
-
-  _mat_navScrollRef = _mat_actualizarFlechasNav;
-  panel.addEventListener('scroll', _mat_navScrollRef);
-  _mat_actualizarFlechasNav();
-}
-
+// Actualiza qué flechas están atenuadas según la posición del scroll
 function _mat_actualizarFlechasNav() {
-  if (!_mat_navFlechas) return;
   const panel = document.getElementById('panel-tab-term');
   if (!panel) return;
-  const atL = panel.scrollLeft < 2;
-  const atR = panel.scrollLeft >= panel.scrollWidth  - panel.clientWidth  - 2;
-  const atT = panel.scrollTop  < 2;
-  const atB = panel.scrollTop  >= panel.scrollHeight - panel.clientHeight - 2;
-  const f = function(id, dim) {
+  const dim = function(id, cond) {
     const b = document.getElementById(id);
-    if (b) b.classList.toggle('dim', dim);
+    if (b) b.classList.toggle('dim', cond);
   };
-  f('mnf-up',    atT);
-  f('mnf-down',  atB);
-  f('mnf-left',  atL);
-  f('mnf-right', atR);
+  dim('mnf-up',    panel.scrollTop  < 2);
+  dim('mnf-down',  panel.scrollTop  >= panel.scrollHeight - panel.clientHeight - 2);
+  dim('mnf-left',  panel.scrollLeft < 2);
+  dim('mnf-right', panel.scrollLeft >= panel.scrollWidth  - panel.clientWidth  - 2);
 }
 
-function _mat_destruirFlechasNav() {
-  if (_mat_navFlechas) {
-    const panel = document.getElementById('panel-tab-term');
-    if (panel && _mat_navScrollRef) panel.removeEventListener('scroll', _mat_navScrollRef);
-    _mat_navFlechas.remove();
-    _mat_navFlechas = null;
-    _mat_navScrollRef = null;
+// Registrar eventos — llamado desde terminaciones_inicializar()
+let _mat_flechasRegistradas = false;
+function _mat_registrarFlechasNav() {
+  // Click handler global (una sola vez en toda la sesión)
+  if (!_mat_flechasRegistradas) {
+    document.getElementById('mat-nav-flechas').addEventListener('click', function(e) {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const panel = document.getElementById('panel-tab-term');
+      if (!panel) return;
+      const PASO = 180;
+      if (btn.id === 'mnf-up')    panel.scrollBy({ top:  -PASO, behavior: 'smooth' });
+      if (btn.id === 'mnf-down')  panel.scrollBy({ top:   PASO, behavior: 'smooth' });
+      if (btn.id === 'mnf-left')  panel.scrollBy({ left: -PASO, behavior: 'smooth' });
+      if (btn.id === 'mnf-right') panel.scrollBy({ left:  PASO, behavior: 'smooth' });
+      setTimeout(_mat_actualizarFlechasNav, 350);
+    });
+    _mat_flechasRegistradas = true;
   }
-}
-
-function terminaciones_limpiar() {
-  _mat_destruirFlechasNav();
+  // Scroll listener: se adjunta al panel cada vez (el panel se re-crea en cada render)
+  const panel = document.getElementById('panel-tab-term');
+  if (panel) {
+    panel.addEventListener('scroll', _mat_actualizarFlechasNav);
+    _mat_actualizarFlechasNav();
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -290,9 +258,6 @@ function _mat_render() {
 
   _mat_renderContenido();
   _mat_registrarEventos();
-
-  // Flechas de navegación: crear tras renderizar para que el DOM tenga overflow medible
-  if (interfaz_esMovil()) setTimeout(_mat_crearFlechasNav, 400);
 }
 
 // ── Sidebar escritorio ───────────────────────────────────────────────────────
@@ -2299,92 +2264,4 @@ async function _mat_exportarPlanilla(file) {
       const tit = document.getElementById('mat-progreso-titulo');
       if (tit) { tit.textContent = '✓ Planilla actualizada'; tit.style.color = 'var(--exito, #2e7d32)'; }
       const msg = document.getElementById('mat-progreso-msg');
-      if (msg) msg.textContent = actualizadas + ' celdas escritas correctamente.';
-      const bar = document.getElementById('mat-progreso-barra');
-      if (bar) bar.style.background = 'var(--exito, #2e7d32)';
-    }
-    await new Promise(r => setTimeout(r, 2500)); // mostrar éxito 2.5 segundos
-    _mat_ocultarProgreso();
-
-  } catch (err) {
-    console.error('Error exportando planilla:', err);
-    _mat_ocultarProgreso();
-    interfaz_mostrarToast('Error al actualizar la planilla. Verifica que sea la planilla tipo correcta.', 'error');
-  }
-}
-
-// Muestra o actualiza la burbuja de progreso flotante.
-// Devuelve una Promise que espera el próximo repintado del navegador,
-// garantizando que el usuario vea la actualización antes de continuar.
-function _mat_mostrarProgreso(mensaje, pct) {
-  let el = document.getElementById('mat-progreso-exportar');
-  if (!el) {
-    el = document.createElement('div');
-    el.id        = 'mat-progreso-exportar';
-    el.className = 'mat-progreso';
-    el.innerHTML =
-      '<div class="mat-progreso-titulo">Generando archivo</div>' +
-      '<div class="mat-progreso-msg"  id="mat-progreso-msg"></div>' +
-      '<div class="mat-progreso-fondo"><div class="mat-progreso-barra" id="mat-progreso-barra"></div></div>' +
-      '<div class="mat-progreso-pct"  id="mat-progreso-pct"></div>';
-    document.body.appendChild(el);
-  }
-  el.classList.remove('ocultando');
-  document.getElementById('mat-progreso-msg').textContent   = mensaje;
-  document.getElementById('mat-progreso-barra').style.width = pct + '%';
-  document.getElementById('mat-progreso-pct').textContent   = Math.round(pct) + '%';
-  // Forzar repintado y esperar 200ms para que cada paso sea claramente visible
-  return new Promise(r => requestAnimationFrame(() => setTimeout(r, 200)));
-}
-
-// Oculta y elimina la burbuja de progreso
-function _mat_ocultarProgreso() {
-  const el = document.getElementById('mat-progreso-exportar');
-  if (!el) return;
-  el.classList.add('ocultando');
-  setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 350);
-}
-
-// Convierte índice de columna (0-based) a letra(s) Excel: 0→A, 25→Z, 26→AA...
-function _mat_colToLetter(colIdx) {
-  let letter = '', col = colIdx + 1;
-  while (col > 0) {
-    const rem = (col - 1) % 26;
-    letter = String.fromCharCode(65 + rem) + letter;
-    col    = Math.floor((col - 1) / 26);
-  }
-  return letter;
-}
-
-// Actualiza el valor de una celda en el XML de la hoja.
-// Solo modifica el contenido de <v>; no toca formato, fórmulas ni ningún otro atributo.
-function _mat_actualizarCelda(xml, ref, valor) {
-  const r = ref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // escapar para RegExp
-
-  // Caso 1: celda con valor — <c r="L9" ...><v>X</v></c>
-  // (puede haber <f>...</f> antes del <v> si tiene fórmula, se conserva)
-  const re1 = new RegExp('(<c r="' + r + '"[^>]*>)((?:<f>[^<]*<\\/f>)?)<v>[^<]*<\\/v>(<\\/c>)');
-  if (re1.test(xml)) {
-    return xml.replace(re1, (_, open, formula, close) =>
-      open.replace(/\s+t="[^"]*"/, '') + formula + '<v>' + valor + '</v>' + close
-    );
-  }
-
-  // Caso 2: celda vacía autocierre — <c r="L9" .../>
-  const re2 = new RegExp('(<c r="' + r + '"[^>]*)/>');
-  if (re2.test(xml)) {
-    return xml.replace(re2, (_, open) =>
-      open.replace(/\s+t="[^"]*"/, '') + '><v>' + valor + '</v></c>'
-    );
-  }
-
-  // Caso 3: celda vacía con cierre explícito — <c r="L9" ...></c>
-  const re3 = new RegExp('(<c r="' + r + '"[^>]*>)(<\\/c>)');
-  if (re3.test(xml)) {
-    return xml.replace(re3, (_, open, close) =>
-      open.replace(/\s+t="[^"]*"/, '') + '<v>' + valor + '</v>' + close
-    );
-  }
-
-  return xml; // celda no encontrada en el XML: no se modifica nada
-}
+      if (msg) msg.textContent = actualizadas + ' celdas escritas

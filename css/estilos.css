@@ -2633,42 +2633,37 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   margin-right: 4px;
 }
 
-/* ── Flechas de navegación flotantes (móvil/tablet, v4.54) ────── */
-.mat-nav-flechas {
+/* ── Flechas de navegación flotantes (v4.54) ─────────────────────────────── */
+#mat-nav-flechas {
+  display: none;
   position: fixed;
   bottom: 24px;
   left: 20px;
-  display: grid;
-  grid-template-columns: repeat(3, 40px);
-  grid-template-rows: repeat(3, 40px);
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(3, 44px);
   gap: 4px;
   z-index: 390;
-  pointer-events: none;
 }
-.mat-nav-flechas button {
-  pointer-events: all;
+.modo-movil #mat-nav-flechas {
+  display: grid;
 }
-.mat-nav-flecha {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: rgba(26, 23, 20, 0.68);
+#mat-nav-flechas button {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(26, 23, 20, 0.70);
   color: #fff;
   border: none;
-  font-size: 17px;
+  font-size: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  transition: opacity .15s;
+  transition: opacity .2s;
 }
-.mat-nav-flecha.dim {
-  opacity: 0.18;
+#mat-nav-flechas button.dim {
+  opacity: 0.15;
   pointer-events: none;
-}
-.mat-nav-flecha-vacio {
-  width: 40px;
-  height: 40px;
 }
