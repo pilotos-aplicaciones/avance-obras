@@ -174,11 +174,6 @@ function _mat_crearFlechasNav() {
   const panel = document.getElementById('panel-tab-term');
   if (!panel) return;
 
-  // Solo mostrar si hay overflow en alguna dirección
-  const hayH = panel.scrollWidth  > panel.clientWidth  + 4;
-  const hayV = panel.scrollHeight > panel.clientHeight + 4;
-  if (!hayH && !hayV) return;
-
   const el = document.createElement('div');
   el.id = 'mat-nav-flechas';
   el.className = 'mat-nav-flechas';
@@ -297,7 +292,7 @@ function _mat_render() {
   _mat_registrarEventos();
 
   // Flechas de navegación: crear tras renderizar para que el DOM tenga overflow medible
-  if (interfaz_esMovil()) setTimeout(_mat_crearFlechasNav, 120);
+  if (interfaz_esMovil()) setTimeout(_mat_crearFlechasNav, 400);
 }
 
 // ── Sidebar escritorio ───────────────────────────────────────────────────────

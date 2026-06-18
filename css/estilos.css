@@ -2630,7 +2630,8 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 /* ── Revisión: ícono emoji en encabezado de grupo (v4.51) ────── */
 .rev-icono-grp {
   font-size: 14px;
-  margin
+  margin-right: 4px;
+}
 
 /* ── Flechas de navegación flotantes (móvil/tablet, v4.54) ────── */
 .mat-nav-flechas {
