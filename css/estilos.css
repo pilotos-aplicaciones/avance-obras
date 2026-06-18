@@ -2644,7 +2644,7 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   gap: 4px;
   z-index: 390;
 }
-.modo-movil #mat-nav-flechas {
+.modo-movil.proyecto-con-fase #mat-nav-flechas {
   display: grid;
 }
 #mat-nav-flechas button {

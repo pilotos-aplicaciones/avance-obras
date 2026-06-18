@@ -200,9 +200,10 @@ function _mat_registrarFlechasNav() {
     });
     _mat_flechasRegistradas = true;
   }
-  // Scroll listener: se adjunta al panel cada vez (el panel se re-crea en cada render)
+  // Mostrar flechas y conectar scroll listener al panel
   const panel = document.getElementById('panel-tab-term');
   if (panel) {
+    document.body.classList.add('proyecto-con-fase');
     panel.addEventListener('scroll', _mat_actualizarFlechasNav);
     _mat_actualizarFlechasNav();
   }

@@ -33,6 +33,9 @@ function router_ir(vista, opciones = {}) {
 }
 
 function _router_navegar(vista, opciones = {}) {
+  // Mostrar flechas solo dentro de v-proyecto; ocultar en cualquier otra vista
+  if (vista !== 'v-proyecto') document.body.classList.remove('proyecto-con-fase');
+
   VISTAS.forEach(v => {
     const el = document.getElementById(v);
     if (el) el.style.display = 'none';
