@@ -2646,8 +2646,8 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   bottom: calc(14px + env(safe-area-inset-bottom, 0px));
   z-index: 900;
   display: none;            /* el JS lo activa con .visible */
-  width: 86px;
-  height: 86px;
+  width: 102px;
+  height: 102px;
   pointer-events: none;     /* solo los botones capturan toques, no el área */
   touch-action: none;
 }
@@ -2655,8 +2655,8 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 
 .coa-scroll-btn {
   position: absolute;
-  width: 30px;
-  height: 30px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2664,7 +2664,7 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   border-radius: 50%;
   background: rgba(40, 40, 40, 0.38);   /* semitransparente */
   color: #fff;
-  font-size: 16px;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
   pointer-events: auto;
@@ -2679,11 +2679,11 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
 /* Atenuado cuando no hay más contenido en esa dirección */
 .coa-scroll-btn.coa-scroll-off { opacity: .2; }
 
-/* Posiciones en cruz dentro del área de 86×86 (botón 30 → centro en 28) */
-.coa-scroll-up    { top: 0;    left: 28px; }
-.coa-scroll-down  { top: 56px; left: 28px; }
-.coa-scroll-left  { left: 0;   top: 28px; }
-.coa-scroll-right { left: 56px; top: 28px; }
+/* Posiciones en cruz dentro del área de 102×102 (botón 38 → centro en 32) */
+.coa-scroll-up    { top: 0;    left: 32px; }
+.coa-scroll-down  { top: 64px; left: 32px; }
+.coa-scroll-left  { left: 0;   top: 32px; }
+.coa-scroll-right { left: 64px; top: 32px; }
 
 /* El escritorio nunca debe mostrar la cruz, ni aunque el JS la marque visible */
 .modo-escritorio #coa-scroll-pad { display: none !important; }
