@@ -33,9 +33,6 @@ function router_ir(vista, opciones = {}) {
 }
 
 function _router_navegar(vista, opciones = {}) {
-  // Ocultar botones de navegación móvil al salir del proyecto (v4.54)
-  if (vista !== 'v-proyecto' && typeof navScroll_ocultar === 'function') navScroll_ocultar();
-
   VISTAS.forEach(v => {
     const el = document.getElementById(v);
     if (el) el.style.display = 'none';
