@@ -2634,4 +2634,57 @@ button { font-family: inherit; cursor: pointer; border: none; outline: none; }
   vertical-align: middle;
   line-height: 1;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Botones de desplazamiento — cruz flotante (v4.54)
+   Función nueva y aislada. Solo móvil + dentro de proyecto.
+   El JS (scroll-movil.js) controla cuándo se muestran (.visible).
+   ══════════════════════════════════════════════════════════════ */
+#coa-scroll-pad {
+  position: fixed;
+  left: calc(10px + env(safe-area-inset-left, 0px));
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  z-index: 900;
+  display: none;            /* el JS lo activa con .visible */
+  width: 86px;
+  height: 86px;
+  pointer-events: none;     /* solo los botones capturan toques, no el área */
+  touch-action: none;
+}
+#coa-scroll-pad.visible { display: block; }
+
+.coa-scroll-btn {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(40, 40, 40, 0.38);   /* semitransparente */
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
+  transition: opacity .15s, background .15s;
+}
+.coa-scroll-btn:active { background: rgba(40, 40, 40, 0.6); }
+
+/* Atenuado cuando no hay más contenido en esa dirección */
+.coa-scroll-btn.coa-scroll-off { opacity: .2; }
+
+/* Posiciones en cruz dentro del área de 86×86 (botón 30 → centro en 28) */
+.coa-scroll-up    { top: 0;    left: 28px; }
+.coa-scroll-down  { top: 56px; left: 28px; }
+.coa-scroll-left  { left: 0;   top: 28px; }
+.coa-scroll-right { left: 56px; top: 28px; }
+
+/* El escritorio nunca debe mostrar la cruz, ni aunque el JS la marque visible */
+.modo-escritorio #coa-scroll-pad { display: none !important; }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
