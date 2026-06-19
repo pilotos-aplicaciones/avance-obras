@@ -2095,6 +2095,88 @@ function _mat_importarExcel(file) {
   reader.readAsArrayBuffer(file);
 }
 
+// ── Helpers de exportación a planilla ────────────────────────────────────────
+// Estas funciones vivían antes en importar.js (módulo eliminado). Se reincorporan
+// aquí, idénticas a la versión original, para que "Exportar Excel" vuelva a
+// funcionar. La burbuja de progreso usa las clases .mat-progreso del CSS
+// (centrada, con título y porcentaje).
+
+// Muestra o actualiza la burbuja de progreso flotante.
+// Devuelve una Promise que espera el próximo repintado del navegador,
+// garantizando que el usuario vea la actualización antes de continuar.
+function _mat_mostrarProgreso(mensaje, pct) {
+  let el = document.getElementById('mat-progreso-exportar');
+  if (!el) {
+    el = document.createElement('div');
+    el.id        = 'mat-progreso-exportar';
+    el.className = 'mat-progreso';
+    el.innerHTML =
+      '<div class="mat-progreso-titulo">Generando archivo</div>' +
+      '<div class="mat-progreso-msg"  id="mat-progreso-msg"></div>' +
+      '<div class="mat-progreso-fondo"><div class="mat-progreso-barra" id="mat-progreso-barra"></div></div>' +
+      '<div class="mat-progreso-pct"  id="mat-progreso-pct"></div>';
+    document.body.appendChild(el);
+  }
+  el.classList.remove('ocultando');
+  document.getElementById('mat-progreso-msg').textContent   = mensaje;
+  document.getElementById('mat-progreso-barra').style.width = pct + '%';
+  document.getElementById('mat-progreso-pct').textContent   = Math.round(pct) + '%';
+  // Forzar repintado y esperar 200ms para que cada paso sea claramente visible
+  return new Promise(r => requestAnimationFrame(() => setTimeout(r, 200)));
+}
+
+// Oculta y elimina la burbuja de progreso
+function _mat_ocultarProgreso() {
+  const el = document.getElementById('mat-progreso-exportar');
+  if (!el) return;
+  el.classList.add('ocultando');
+  setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 350);
+}
+
+// Convierte índice de columna (0-based) a letra(s) Excel: 0→A, 25→Z, 26→AA...
+function _mat_colToLetter(colIdx) {
+  let letter = '', col = colIdx + 1;
+  while (col > 0) {
+    const rem = (col - 1) % 26;
+    letter = String.fromCharCode(65 + rem) + letter;
+    col    = Math.floor((col - 1) / 26);
+  }
+  return letter;
+}
+
+// Actualiza el valor de una celda en el XML de la hoja.
+// Solo modifica el contenido de <v>; no toca formato, fórmulas ni ningún otro atributo.
+function _mat_actualizarCelda(xml, ref, valor) {
+  const r = ref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // escapar para RegExp
+
+  // Caso 1: celda con valor — <c r="L9" ...><v>X</v></c>
+  // (puede haber <f>...</f> antes del <v> si tiene fórmula, se conserva)
+  const re1 = new RegExp('(<c r="' + r + '"[^>]*>)((?:<f>[^<]*<\\/f>)?)<v>[^<]*<\\/v>(<\\/c>)');
+  if (re1.test(xml)) {
+    return xml.replace(re1, (_, open, formula, close) =>
+      open.replace(/\s+t="[^"]*"/, '') + formula + '<v>' + valor + '</v>' + close
+    );
+  }
+
+  // Caso 2: celda vacía autocierre — <c r="L9" .../>
+  const re2 = new RegExp('(<c r="' + r + '"[^>]*)/>');
+  if (re2.test(xml)) {
+    return xml.replace(re2, (_, open) =>
+      open.replace(/\s+t="[^"]*"/, '') + '><v>' + valor + '</v></c>'
+    );
+  }
+
+  // Caso 3: celda vacía con cierre explícito — <c r="L9" ...></c>
+  const re3 = new RegExp('(<c r="' + r + '"[^>]*>)(<\\/c>)');
+  if (re3.test(xml)) {
+    return xml.replace(re3, (_, open, close) =>
+      open.replace(/\s+t="[^"]*"/, '') + '<v>' + valor + '</v>' + close
+    );
+  }
+
+  return xml; // celda no encontrada en el XML: no se modifica nada
+}
+
 // ── Exportar a planilla (escribe solo los valores de avance, sin rehacer el archivo) ──
 
 async function _mat_exportarPlanilla(file) {
@@ -2218,10 +2300,16 @@ async function _mat_exportarPlanilla(file) {
       const tit = document.getElementById('mat-progreso-titulo');
       if (tit) { tit.textContent = '✓ Planilla actualizada'; tit.style.color = 'var(--exito, #2e7d32)'; }
       const msg = document.getElementById('mat-progreso-msg');
-      if (msg) msg.textContent = actualizadas + ' celdas escritas en la planilla.';
+      if (msg) msg.textContent = actualizadas + ' celdas escritas correctamente.';
+      const bar = document.getElementById('mat-progreso-barra');
+      if (bar) bar.style.background = 'var(--exito, #2e7d32)';
     }
-  } catch (err) {
+    await new Promise(r => setTimeout(r, 2500)); // mostrar éxito 2.5 segundos
     _mat_ocultarProgreso();
-    interfaz_mostrarToast('Error al exportar: ' + err.message, 'error');
+
+  } catch (err) {
+    console.error('Error exportando planilla:', err);
+    _mat_ocultarProgreso();
+    interfaz_mostrarToast('Error al actualizar la planilla. Verifica que sea la planilla tipo correcta.', 'error');
   }
 }

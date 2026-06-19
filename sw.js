@@ -1,5 +1,7 @@
 // Service Worker — COA prueba de terreno
-const CACHE = 'coa-v3.6';
+// La versión del caché se alinea con la versión de la app (ver index.html).
+// Al cambiar este número, el SW se reinstala y vuelve a cachear los archivos.
+const CACHE = 'coa-v4.55';
 const ARCHIVOS = [
   './',
   './index.html',
@@ -7,8 +9,9 @@ const ARCHIVOS = [
   './css/estilos.css',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './icons/logo_navbar_app.png',
+  './icons/logo_navbar.png',
   './js/firebase-config.js',
+  './js/zip-utils.js',
   './js/actividades.js',
   './js/logica.js',
   './js/datos.js',
@@ -16,8 +19,9 @@ const ARCHIVOS = [
   './js/proyectos.js',
   './js/semana-control.js',
   './js/config-proyecto.js',
-  './js/importar.js',
   './js/terminaciones.js',
+  './js/revision.js',
+  './js/scroll-movil.js',
   './js/interfaz.js',
   './js/vendor/xlsx.full.min.js',
 ];

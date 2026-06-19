@@ -268,9 +268,18 @@ function _fs_subirProyecto(id) {
   config.modificadoEn = ahora;
   localStorage.setItem(_PRE + 'proyecto_' + id, JSON.stringify(config));
 
+  // Solo se sincroniza el estado CONFIRMADO. Si el proyecto tiene cambios sin
+  // guardar (pendiente), se sube la última versión oficial (matrices_ok), nunca
+  // el borrador. Así una reconexión o una edición de config/fecha no suben
+  // avances que el usuario aún no confirmó con "Guardar avances".
+  // Si no hay pendiente, el borrador YA es el estado oficial (cubre importaciones).
+  const matricesASubir = datos_hayPendiente(id)
+    ? datos_cargarMatricesOk(id)
+    : datos_cargarMatrices(id);
+
   const doc = {
     config,
-    matrices:      datos_cargarMatrices(id)      || {},
+    matrices:      matricesASubir                || {},
     semanaControl: datos_cargarSemanaControl(id) || null,
     _sincEn:        ahora,
     _dispositivoId: _DEVICE_ID,  // identifica el origen; el listener lo usa para ignorar echos
